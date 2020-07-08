@@ -1,7 +1,7 @@
 # <img src="https://github.com/pip-services/pip-services/raw/master/design/Logo.png" alt="Pip.Services Logo" style="max-width:30%"> <br/> Payment methods microservice
 
-This is credit methods microservice from Pip.Services library. 
-It stores customer credit methods internally or in external PCI-complient service like Paypal
+This is payment methods microservice from Pip.Services library. 
+It stores customer payment methods internally or in external PCI-complient service like Paypal
 
 The microservice currently supports the following deployment options:
 * Deployment platforms: Standalone Process, Seneca
@@ -190,24 +190,20 @@ Now the client is ready to perform operations
 ```javascript
 // Create a new payment_method
 var payment_method = {
+    id: '2',
     customer_id: '1',
-    type: 'visa',
-    number: '1111111111111111',
-    expire_month: 1,
-    expire_year: 2021,
-    first_name: 'Bill',
-    last_name: 'Gates',
-    billing_address: {
-        line1: '2345 Swan Rd',
-        city: 'Tucson',
-        postal_code: '85710',
-        country_code: 'US'
-    },
-    ccv: '213',
-    name: 'Test Card 1',
-    saved: true,
-    default: true,
-    state: 'ok'
+    name: 'Visa *2780',
+    type: PaymentMethodTypeV1.CreditCard,
+    card: {
+        brand: 'VISA',
+        ccv: '921',
+        expire_month: 4,
+        expire_year: 2024,
+        first_name: 'Steve',
+        last_name: 'Jobs',
+        number: '4032037578262780',
+        state: CreditCardStateV1.Ok
+    }
 };
 
 client.createPaymentMethod(
@@ -224,8 +220,7 @@ client.createPaymentMethod(
 client.getPaymentMethods(
     null,
     {
-        customer_id: '1',
-        state: 'ok'
+        customer_id: '1'
     },
     {
         total: true,

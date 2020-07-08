@@ -1,1 +1,1 @@
-// export { PaymentMethodsServiceFactory } from './PaymentMethodsServiceFactory';
+export { PaymentMethodsServiceFactory } from './PaymentMethodsServiceFactory';
