@@ -18,9 +18,10 @@ Get payment methods by filter
 **Request body:**
 - filter: Object
     - id: string - (optional) unique method id
-    - ids: string - (optional) list of unique method ids
+    - ids: string - (optional) list of unique method ids 
+    - type: string - (optional) method type (PaymentMethodTypeV1)
     - customer_id: string - (optional) method reference customer id
-    - state: string - (optional) method state (PurchaseOrderStateV1)
+    - default: boolean (optional) true if you need to get default payment methods
 - paging: Object
   - skip: int - (optional) start of page (default: 0). Operation returns paged result
   - take: int - (optional) page length (max: 100). Operation returns paged result
