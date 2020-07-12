@@ -17,9 +17,11 @@ export class TestModel {
                 bank_code: 'BOFAUS3MXXX',
                 first_name: 'Joe',
                 last_name: 'Dow',
-                number: '4032036094894795',
+                number: '000123456789',
                 branch_code: 'DOWNTOWN MIAMI',
-                country: 'USA'
+                currency: 'USD',
+                country: 'US',
+                routing_number: "110000000"
             }
         };
     }
@@ -28,7 +30,7 @@ export class TestModel {
         return {
             id: '2',
             customer_id: '1',
-            name: 'Visa *2780',
+            name: 'Visa *5556',
             type: PaymentMethodTypeV1.CreditCard,
             card: {
                 brand: 'VISA',
@@ -37,7 +39,7 @@ export class TestModel {
                 expire_year: 2024,
                 first_name: 'Steve',
                 last_name: 'Jobs',
-                number: '4032037578262780',
+                number: '4000056655665556',
                 state: CreditCardStateV1.Ok
             }
         };
@@ -47,7 +49,7 @@ export class TestModel {
         return {
             id: '3',
             customer_id: '2',
-            name: 'MasterCard *2780',
+            name: 'MasterCard *8210',
             type: PaymentMethodTypeV1.CreditCard,
             card: {
                 brand: 'MasterCard',
@@ -56,7 +58,26 @@ export class TestModel {
                 expire_year: 2022,
                 first_name: 'Steve',
                 last_name: 'Jobs',
-                number: '4032037578262780',
+                number: '5200828282828210',
+                state: CreditCardStateV1.Ok
+            }
+        };
+    }
+
+    static createPaymentMethod4() {
+        return {
+            id: '4',
+            customer_id: '1',
+            name: 'Visa *4242',
+            type: PaymentMethodTypeV1.CreditCard,
+            card: {
+                brand: 'VISA',
+                ccv: '921',
+                expire_month: 4,
+                expire_year: 2024,
+                first_name: 'Steve',
+                last_name: 'Jobs',
+                number: '4242424242424242',
                 state: CreditCardStateV1.Ok
             }
         };
@@ -82,12 +103,12 @@ export class TestModel {
         assert.isNotNull(expected);
 
         assert.equal(actual.brand, expected.brand);
-        assert.equal(actual.ccv, expected.ccv);
+        //assert.equal(actual.ccv, expected.ccv);
         assert.equal(actual.expire_month, expected.expire_month);
         assert.equal(actual.expire_year, expected.expire_year);
         assert.equal(actual.first_name, expected.first_name);
         assert.equal(actual.last_name, expected.last_name);
-        assert.equal(actual.number, expected.number);
+        //assert.equal(actual.number, expected.number);
         assert.equal(actual.state, expected.state);
     }
 
@@ -98,7 +119,7 @@ export class TestModel {
         assert.equal(actual.bank_code, expected.bank_code);
         assert.equal(actual.first_name, expected.first_name);
         assert.equal(actual.last_name, expected.last_name);
-        assert.equal(actual.number, expected.number);
+        //assert.equal(actual.number, expected.number);
         assert.equal(actual.branch_code, expected.branch_code);
         assert.equal(actual.country, expected.country);
     }

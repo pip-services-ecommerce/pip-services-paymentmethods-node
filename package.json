@@ -31,20 +31,21 @@
         "watch": "tsc --watch",
         "launch": "node run",
         "relaunch": "tsc && node run",
-        "test": "mocha -t 5000 -R spec -u tdd --recursive ./obj/test",
-        "retest": "tsc && mocha -t 5000 -R spec -u tdd --recursive ./obj/test",
+        "test": "mocha -t 30000 -R spec -u tdd --recursive ./obj/test",
+        "retest": "tsc && mocha -t 30000 -R spec -u tdd --recursive ./obj/test",
         "benchmark": "matcha -R clean -I tdd ./obj/benchmark/run.js",
         "rebenchmark": "tsc && matcha -R clean -I tdd ./obj/benchmark/run.js"
     },
     "dependencies": {
         "paypal-rest-sdk": "*",
+        "pip-services3-aws-node": "^3.0.0",
         "pip-services3-commons-node": "^3.0.0",
         "pip-services3-components-node": "^3.0.0",
         "pip-services3-container-node": "^3.0.0",
         "pip-services3-data-node": "^3.0.0",
-        "pip-services3-aws-node": "^3.0.0",
+        "pip-services3-mongodb-node": "^3.0.0",
         "pip-services3-rpc-node": "^3.0.0",
-        "pip-services3-mongodb-node": "^3.0.0"
+        "stripe": "^8.69.0"
     },
     "devDependencies": {
         "@types/node": "*",

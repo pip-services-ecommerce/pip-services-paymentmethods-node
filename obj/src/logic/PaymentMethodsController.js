@@ -25,7 +25,7 @@ class PaymentMethodsController {
         this._persistence.getPageByFilter(correlationId, filter, paging, callback);
     }
     getPaymentMethodById(correlationId, id, customerId, callback) {
-        this._persistence.getOneById(correlationId, id, (err, method) => {
+        this._persistence.getById(correlationId, id, customerId, (err, method) => {
             // Do not allow to access method of different customer
             if (method && method.customer_id != customerId)
                 method = null;
@@ -42,7 +42,7 @@ class PaymentMethodsController {
         method.update_time = new Date();
         async.series([
             (callback) => {
-                this._persistence.getOneById(correlationId, method.id, (err, data) => {
+                this._persistence.getById(correlationId, method.id, method.customer_id, (err, data) => {
                     if (err == null && data && data.customer_id != method.customer_id) {
                         err = new pip_services3_commons_node_3.BadRequestException(correlationId, 'WRONG_CUST_ID', 'Wrong credit method customer id')
                             .withDetails('id', method.id)
@@ -65,7 +65,7 @@ class PaymentMethodsController {
         let oldCard;
         async.series([
             (callback) => {
-                this._persistence.getOneById(correlationId, id, (err, data) => {
+                this._persistence.getById(correlationId, id, customerId, (err, data) => {
                     if (err == null && data && data.customer_id != customerId) {
                         err = new pip_services3_commons_node_3.BadRequestException(correlationId, 'WRONG_CUST_ID', 'Wrong credit method customer id')
                             .withDetails('id', id)
@@ -75,7 +75,7 @@ class PaymentMethodsController {
                 });
             },
             (callback) => {
-                this._persistence.deleteById(correlationId, id, (err, data) => {
+                this._persistence.delete(correlationId, id, customerId, (err, data) => {
                     oldCard = data;
                     callback(err);
                 });

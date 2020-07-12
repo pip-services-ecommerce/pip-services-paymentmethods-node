@@ -5,6 +5,7 @@ export declare class PaymentMethodsServiceFactory extends Factory {
     static MemoryPersistenceDescriptor: Descriptor;
     static FilePersistenceDescriptor: Descriptor;
     static MongoDbPersistenceDescriptor: Descriptor;
+    static StripePersistenceDescriptor: Descriptor;
     static ControllerDescriptor: Descriptor;
     static HttpServiceDescriptor: Descriptor;
     constructor();

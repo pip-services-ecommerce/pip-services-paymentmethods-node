@@ -34,6 +34,12 @@ class PaymentMethodsMongoDbPersistence extends pip_services3_mongodb_node_1.Iden
     getPageByFilter(correlationId, filter, paging, callback) {
         super.getPageByFilter(correlationId, this.composeFilter(filter), paging, null, null, callback);
     }
+    getById(correlationId, id, customerId, callback) {
+        super.getOneById(correlationId, id, callback);
+    }
+    delete(correlationId, id, customerId, callback) {
+        super.deleteById(correlationId, id, callback);
+    }
 }
 exports.PaymentMethodsMongoDbPersistence = PaymentMethodsMongoDbPersistence;
 //# sourceMappingURL=PaymentMethodsMongoDbPersistence.js.map

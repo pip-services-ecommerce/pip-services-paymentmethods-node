@@ -1,4 +1,3 @@
-let _ = require('lodash');
 let async = require('async');
 let assert = require('chai').assert;
 
@@ -7,12 +6,8 @@ import { PagingParams } from 'pip-services3-commons-node';
 
 import { PaymentMethodV1 } from '../../src/data/version1/PaymentMethodV1';
 import { PaymentMethodTypeV1 } from '../../src/data/version1/PaymentMethodTypeV1';
-import { CreditCardStateV1 } from '../../src/data/version1/CreditCardStateV1';
 
 import { IPaymentMethodsPersistence } from '../../src/persistence/IPaymentMethodsPersistence';
-import { AddressV1 } from '../../src/data/version1/AddressV1';
-import { CreditCardV1 } from '../../src/data/version1/CreditCardV1';
-import { BankAccountV1 } from '../../src';
 import { TestModel } from '../data/TestModel';
 
 let PAYMENT_METHOD1: PaymentMethodV1 = TestModel.createPaymentMethod1();
@@ -40,6 +35,8 @@ export class PaymentMethodsPersistenceFixture {
                         assert.isObject(paymentMethod);
                         TestModel.assertEqualPaymentMethod(paymentMethod, PAYMENT_METHOD1);
 
+                        PAYMENT_METHOD1.id = paymentMethod.id;
+
                         callback();
                     }
                 );
@@ -54,6 +51,8 @@ export class PaymentMethodsPersistenceFixture {
                         assert.isObject(paymentMethod);
                         TestModel.assertEqualPaymentMethod(paymentMethod, PAYMENT_METHOD2);
 
+                        PAYMENT_METHOD2.id = paymentMethod.id;
+
                         callback();
                     }
                 );
@@ -67,6 +66,8 @@ export class PaymentMethodsPersistenceFixture {
                         assert.isNull(err);
                         assert.isObject(paymentMethod);
                         TestModel.assertEqualPaymentMethod(paymentMethod, PAYMENT_METHOD3);
+
+                        PAYMENT_METHOD3.id = paymentMethod.id;
 
                         callback();
                     }
@@ -122,9 +123,10 @@ export class PaymentMethodsPersistenceFixture {
             },
             // Delete payment method
             (callback) => {
-                this._persistence.deleteById(
+                this._persistence.delete(
                     null,
                     paymentMethod1.id,
+                    paymentMethod1.customer_id,
                     (err) => {
                         assert.isNull(err);
 
@@ -134,9 +136,10 @@ export class PaymentMethodsPersistenceFixture {
             },
             // Try to get deleted payment method
             (callback) => {
-                this._persistence.getOneById(
+                this._persistence.getById(
                     null,
                     paymentMethod1.id,
+                    paymentMethod1.customer_id,
                     (err, paymentMethod) => {
                         assert.isNull(err);
 
@@ -196,7 +199,7 @@ export class PaymentMethodsPersistenceFixture {
                 this._persistence.getPageByFilter(
                     null,
                     FilterParams.fromValue({
-                        ids: ['1', '3']
+                        ids: [PAYMENT_METHOD1.id, PAYMENT_METHOD3.id]
                     }),
                     new PagingParams(),
                     (err, page) => {

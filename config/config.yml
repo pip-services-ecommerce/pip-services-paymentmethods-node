@@ -45,6 +45,15 @@
     access_key: "{{PAYPAL_ACCESS_KEY}}"
 {{/if}}
 
+{{#if STRIPE_ENABLED}}
+# Stripe persistence
+- descriptor: "pip-services-paymentmethods:persistence:stripe:default:*"
+  options:
+    timeout: 80000
+  credential:
+    access_key: "{{STRIPE_ACCESS_KEY}}" 
+{{/if}}
+
 {{#unless MEMORY_ENABLED}}{{#unless FILE_ENABLED}}{{#unless MONGO_ENABLED}}{{#unless PAYPAL_ENABLED}}
 # Default in-memory persistence
 - descriptor: "pip-services-paymentmethods:persistence:memory:default:1.0"

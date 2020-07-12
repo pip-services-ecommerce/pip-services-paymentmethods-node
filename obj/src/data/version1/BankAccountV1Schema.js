@@ -8,6 +8,8 @@ class BankAccountV1Schema extends pip_services3_commons_node_1.ObjectSchema {
         this.withRequiredProperty('bank_code', pip_services3_commons_node_2.TypeCode.String);
         this.withOptionalProperty('branch_code', pip_services3_commons_node_2.TypeCode.String);
         this.withRequiredProperty('number', pip_services3_commons_node_2.TypeCode.String);
+        this.withRequiredProperty('routing_number', pip_services3_commons_node_2.TypeCode.String);
+        this.withRequiredProperty('currency', pip_services3_commons_node_2.TypeCode.String);
         this.withRequiredProperty('first_name', pip_services3_commons_node_2.TypeCode.String);
         this.withRequiredProperty('last_name', pip_services3_commons_node_2.TypeCode.String);
         this.withOptionalProperty('country', pip_services3_commons_node_2.TypeCode.String);

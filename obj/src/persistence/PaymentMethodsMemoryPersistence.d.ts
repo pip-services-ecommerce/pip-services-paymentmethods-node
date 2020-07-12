@@ -9,4 +9,6 @@ export declare class PaymentMethodsMemoryPersistence extends IdentifiableMemoryP
     private contains;
     private composeFilter;
     getPageByFilter(correlationId: string, filter: FilterParams, paging: PagingParams, callback: (err: any, page: DataPage<PaymentMethodV1>) => void): void;
+    getById(correlationId: string, id: string, customerId: string, callback: (err: any, item: PaymentMethodV1) => void): void;
+    delete(correlationId: string, id: string, customerId: string, callback: (err: any, item: PaymentMethodV1) => void): void;
 }

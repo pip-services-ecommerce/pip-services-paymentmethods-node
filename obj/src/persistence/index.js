@@ -6,4 +6,6 @@ var PaymentMethodsFilePersistence_1 = require("./PaymentMethodsFilePersistence")
 exports.PaymentMethodsFilePersistence = PaymentMethodsFilePersistence_1.PaymentMethodsFilePersistence;
 var PaymentMethodsMongoDbPersistence_1 = require("./PaymentMethodsMongoDbPersistence");
 exports.PaymentMethodsMongoDbPersistence = PaymentMethodsMongoDbPersistence_1.PaymentMethodsMongoDbPersistence;
+var PaymentMethodsStripePersistence_1 = require("./PaymentMethodsStripePersistence");
+exports.PaymentMethodsStripePersistence = PaymentMethodsStripePersistence_1.PaymentMethodsStripePersistence;
 //# sourceMappingURL=index.js.map

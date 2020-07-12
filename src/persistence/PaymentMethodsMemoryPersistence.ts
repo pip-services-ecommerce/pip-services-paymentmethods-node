@@ -64,4 +64,13 @@ export class PaymentMethodsMemoryPersistence
         super.getPageByFilter(correlationId, this.composeFilter(filter), paging, null, null, callback);
     }
 
+    public getById(correlationId: string, id: string, customerId: string,
+        callback: (err: any, item: PaymentMethodV1) => void): void {
+        super.getOneById(correlationId, id, callback);
+    }
+
+    public delete(correlationId: string, id: string, customerId: string,
+        callback: (err: any, item: PaymentMethodV1) => void): void {
+        super.deleteById(correlationId, id, callback);
+    }
 }
