@@ -1,4 +1,4 @@
-# Configuration Guide <br/> PurchaseOrders service Microservice
+# Configuration Guide <br/> PaymentMethods service Microservice
 
 Cluster microservice configuration structure follows the 
 [standard configuration](https://github.com/pip-services/pip-services3-container-node/doc/Configuration.md) 
