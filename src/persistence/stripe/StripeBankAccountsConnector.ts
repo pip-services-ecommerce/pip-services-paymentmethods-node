@@ -1,14 +1,94 @@
+let async = require('async');
+
 import { IStripeConnector } from "../IStripeConnector";
-import { FilterParams, PagingParams, DataPage } from "pip-services3-commons-node";
-import { PaymentMethodV1, PaymentMethodTypeV1, AddressV1 } from "../../data/version1";
-import Stripe from "stripe";
+import { FilterParams, IReferences } from "pip-services3-commons-node";
+import { DataPage } from "pip-services3-commons-node";
+import { PagingParams } from "pip-services3-commons-node";
+
+import { ConfigParams } from "pip-services3-commons-node";
+import { Stripe } from "stripe";
 import { isString } from "util";
+import { StripeOptions } from "../StripeOptions";
+import { ConnectionResolver } from 'pip-services3-components-node';
+import { ConnectionParams } from 'pip-services3-components-node';
+import { CredentialResolver } from 'pip-services3-components-node';
+import { CredentialParams } from 'pip-services3-components-node';
+import { CompositeLogger } from 'pip-services3-components-node';
+
+import { PaymentMethodV1 } from "../../data/version1";
+import { PaymentMethodTypeV1 } from "../../data/version1";
+import { AddressV1 } from "../../data/version1";
 
 export class StripeBankAccountsConnector implements IStripeConnector {
     private _client: Stripe = null;
 
-    constructor(client: Stripe) {
-        this._client = client;
+    private _connectionResolver: ConnectionResolver = new ConnectionResolver();
+    private _credentialsResolver: CredentialResolver = new CredentialResolver();
+
+    private _logger: CompositeLogger = new CompositeLogger();
+
+    public constructor() { }
+
+    public configure(config: ConfigParams): void {
+        this._logger.configure(config);
+        this._connectionResolver.configure(config);
+        this._credentialsResolver.configure(config);
+    }
+
+    public setReferences(references: IReferences): void {
+        this._logger.setReferences(references);
+        this._connectionResolver.setReferences(references);
+        this._credentialsResolver.setReferences(references);
+    }
+
+    public isOpen(): boolean {
+        return this._client != null;
+    }
+
+    public open(correlationId: string, callback: (err: any) => void): void {
+        let connectionParams: ConnectionParams;
+        let credentialParams: CredentialParams;
+
+        async.series([
+            // Get connection params
+            (callback) => {
+                this._connectionResolver.resolve(correlationId, (err, result) => {
+                    connectionParams = result;
+                    callback(err);
+                });
+            },
+            // Get credential params
+            (callback) => {
+                this._credentialsResolver.lookup(correlationId, (err, result) => {
+                    credentialParams = result;
+                    callback(err);
+                });
+            },
+            // Connect
+            (callback) => {
+                let stripeOptions = new StripeOptions(connectionParams);
+                let secretKey = credentialParams.getAccessKey();
+
+                this._client = new Stripe(secretKey, {
+                    apiVersion: stripeOptions.apiVersion,
+                    maxNetworkRetries: stripeOptions.maxNetworkRetries,
+                    httpAgent: stripeOptions.httpAgent,
+                    timeout: stripeOptions.timeout,
+                    host: stripeOptions.host,
+                    port: stripeOptions.port,
+                    protocol: stripeOptions.protocol,
+                    telemetry: stripeOptions.telemetry
+                });
+
+                callback();
+            }
+        ], callback);
+    }
+
+    public close(correlationId: string, callback: (err: any) => void): void {
+        this._client = null;
+
+        if (callback) callback(null);
     }
 
     async getPageByFilterAsync(correlationId: string, filter: FilterParams, paging: PagingParams): Promise<DataPage<PaymentMethodV1>> {
@@ -43,22 +123,10 @@ export class StripeBankAccountsConnector implements IStripeConnector {
     async getByIdAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1> {
         var customer_id = await this.fromPublicCustomerAsync(customerId);
 
-        let customerSource: Stripe.CustomerSource = null;
-        let err: any;
-
-        try {
-            customerSource = await this._client.customers.retrieveSource(customer_id, id, {
+        let customerSource: Stripe.CustomerSource =
+            await this.errorSuppression(this._client.customers.retrieveSource(customer_id, id, {
                 expand: ['metadata']
-            });
-        }
-        catch (e) {
-            err = e;
-        }
-
-        if (err) {
-            if (err.code != 'resource_missing') throw err;
-            customerSource = null;
-        }
+            }));
 
         return customerSource ? await this.toPublicAsync(customerSource as Stripe.BankAccount) : null;
     }
@@ -106,9 +174,9 @@ export class StripeBankAccountsConnector implements IStripeConnector {
     async deleteAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1> {
         var customer_id = await this.fromPublicCustomerAsync(customerId);
 
-        let customerSource = await this._client.customers.deleteSource(customer_id, id, {
+        let customerSource = await this.errorSuppression(this._client.customers.deleteSource(customer_id, id, {
             expand: ['metadata']
-        });
+        }));
 
         return customerSource ? await this.toPublicAsync(customerSource as Stripe.BankAccount) : null;
     }
@@ -261,5 +329,23 @@ export class StripeBankAccountsConnector implements IStripeConnector {
                 state: metadata['address_state']?.toString(),
             };
         }
+    }
+
+    async errorSuppression<T>(action: Promise<T>, errorCodes: [string] = ['resource_missing']): Promise<T> {
+        let result: T = null;
+        let err: any;
+
+        try {
+            result = await action;
+        }
+        catch (e) {
+            err = e;
+        }
+
+        if (err) {
+            if (!errorCodes.includes(err.code)) throw err;
+        }
+
+        return result;
     }
 }

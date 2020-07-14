@@ -9,13 +9,78 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+let async = require('async');
 const pip_services3_commons_node_1 = require("pip-services3-commons-node");
-const version1_1 = require("../../data/version1");
+const pip_services3_commons_node_2 = require("pip-services3-commons-node");
+const pip_services3_commons_node_3 = require("pip-services3-commons-node");
+const stripe_1 = require("stripe");
 const util_1 = require("util");
+const StripeOptions_1 = require("../StripeOptions");
+const pip_services3_components_node_1 = require("pip-services3-components-node");
+const pip_services3_components_node_2 = require("pip-services3-components-node");
+const pip_services3_components_node_3 = require("pip-services3-components-node");
+const version1_1 = require("../../data/version1");
+const version1_2 = require("../../data/version1");
 class StripeBankAccountsConnector {
-    constructor(client) {
+    constructor() {
         this._client = null;
-        this._client = client;
+        this._connectionResolver = new pip_services3_components_node_1.ConnectionResolver();
+        this._credentialsResolver = new pip_services3_components_node_2.CredentialResolver();
+        this._logger = new pip_services3_components_node_3.CompositeLogger();
+    }
+    configure(config) {
+        this._logger.configure(config);
+        this._connectionResolver.configure(config);
+        this._credentialsResolver.configure(config);
+    }
+    setReferences(references) {
+        this._logger.setReferences(references);
+        this._connectionResolver.setReferences(references);
+        this._credentialsResolver.setReferences(references);
+    }
+    isOpen() {
+        return this._client != null;
+    }
+    open(correlationId, callback) {
+        let connectionParams;
+        let credentialParams;
+        async.series([
+            // Get connection params
+            (callback) => {
+                this._connectionResolver.resolve(correlationId, (err, result) => {
+                    connectionParams = result;
+                    callback(err);
+                });
+            },
+            // Get credential params
+            (callback) => {
+                this._credentialsResolver.lookup(correlationId, (err, result) => {
+                    credentialParams = result;
+                    callback(err);
+                });
+            },
+            // Connect
+            (callback) => {
+                let stripeOptions = new StripeOptions_1.StripeOptions(connectionParams);
+                let secretKey = credentialParams.getAccessKey();
+                this._client = new stripe_1.Stripe(secretKey, {
+                    apiVersion: stripeOptions.apiVersion,
+                    maxNetworkRetries: stripeOptions.maxNetworkRetries,
+                    httpAgent: stripeOptions.httpAgent,
+                    timeout: stripeOptions.timeout,
+                    host: stripeOptions.host,
+                    port: stripeOptions.port,
+                    protocol: stripeOptions.protocol,
+                    telemetry: stripeOptions.telemetry
+                });
+                callback();
+            }
+        ], callback);
+    }
+    close(correlationId, callback) {
+        this._client = null;
+        if (callback)
+            callback(null);
     }
     getPageByFilterAsync(correlationId, filter, paging) {
         var _a;
@@ -37,27 +102,15 @@ class StripeBankAccountsConnector {
                     data.push(yield this.toPublicAsync(item));
                 }
             }
-            return new pip_services3_commons_node_1.DataPage(data);
+            return new pip_services3_commons_node_2.DataPage(data);
         });
     }
     getByIdAsync(correlationId, id, customerId) {
         return __awaiter(this, void 0, void 0, function* () {
             var customer_id = yield this.fromPublicCustomerAsync(customerId);
-            let customerSource = null;
-            let err;
-            try {
-                customerSource = yield this._client.customers.retrieveSource(customer_id, id, {
-                    expand: ['metadata']
-                });
-            }
-            catch (e) {
-                err = e;
-            }
-            if (err) {
-                if (err.code != 'resource_missing')
-                    throw err;
-                customerSource = null;
-            }
+            let customerSource = yield this.errorSuppression(this._client.customers.retrieveSource(customer_id, id, {
+                expand: ['metadata']
+            }));
             return customerSource ? yield this.toPublicAsync(customerSource) : null;
         });
     }
@@ -99,16 +152,16 @@ class StripeBankAccountsConnector {
     deleteAsync(correlationId, id, customerId) {
         return __awaiter(this, void 0, void 0, function* () {
             var customer_id = yield this.fromPublicCustomerAsync(customerId);
-            let customerSource = yield this._client.customers.deleteSource(customer_id, id, {
+            let customerSource = yield this.errorSuppression(this._client.customers.deleteSource(customer_id, id, {
                 expand: ['metadata']
-            });
+            }));
             return customerSource ? yield this.toPublicAsync(customerSource) : null;
         });
     }
     clearAsync(correlationId) {
         return __awaiter(this, void 0, void 0, function* () {
             let filter = new pip_services3_commons_node_1.FilterParams();
-            let paging = new pip_services3_commons_node_1.PagingParams(0, 100);
+            let paging = new pip_services3_commons_node_3.PagingParams(0, 100);
             let page = yield this.getPageByFilterAsync(correlationId, filter, paging);
             for (let i = 0; i < page.data.length; i++) {
                 const paymentMethod = page.data[i];
@@ -204,7 +257,7 @@ class StripeBankAccountsConnector {
     }
     toMetadata(item) {
         let account = item.account;
-        let address = item.billing_address || new version1_1.AddressV1();
+        let address = item.billing_address || new version1_2.AddressV1();
         return {
             'default': item.default ? 'true' : 'false',
             'saved': item.saved ? 'true' : 'false',
@@ -240,6 +293,23 @@ class StripeBankAccountsConnector {
                 state: (_l = metadata['address_state']) === null || _l === void 0 ? void 0 : _l.toString(),
             };
         }
+    }
+    errorSuppression(action, errorCodes = ['resource_missing']) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let result = null;
+            let err;
+            try {
+                result = yield action;
+            }
+            catch (e) {
+                err = e;
+            }
+            if (err) {
+                if (!errorCodes.includes(err.code))
+                    throw err;
+            }
+            return result;
+        });
     }
 }
 exports.StripeBankAccountsConnector = StripeBankAccountsConnector;

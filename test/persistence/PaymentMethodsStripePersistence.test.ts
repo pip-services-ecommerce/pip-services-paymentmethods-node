@@ -19,6 +19,8 @@ suite('PaymentMethodsStripePersistence', () => {
         }
 
         var config = ConfigParams.fromTuples(
+            'connection.host', 'api.stripe.com',
+            'connection.timeout', 8000,
             'credential.access_key', STRIPE_ACCESS_KEY
         );
 

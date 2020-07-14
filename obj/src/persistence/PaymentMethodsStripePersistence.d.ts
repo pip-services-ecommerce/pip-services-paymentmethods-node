@@ -10,10 +10,6 @@ import { ICleanable } from 'pip-services3-commons-node';
 import { PaymentMethodV1 } from '../data/version1/PaymentMethodV1';
 import { IPaymentMethodsPersistence } from './IPaymentMethodsPersistence';
 export declare class PaymentMethodsStripePersistence implements IPaymentMethodsPersistence, IConfigurable, IReferenceable, IOpenable, ICleanable {
-    private _credentialsResolver;
-    private _logger;
-    private _client;
-    private _stripeOptions;
     private _stripeCardsConnector;
     private _stripeBankAccountsConnector;
     constructor();
@@ -28,8 +24,7 @@ export declare class PaymentMethodsStripePersistence implements IPaymentMethodsP
     update(correlationId: string, item: PaymentMethodV1, callback: (err: any, item: PaymentMethodV1) => void): void;
     delete(correlationId: string, id: string, customerId: string, callback: (err: any, item: PaymentMethodV1) => void): void;
     clear(correlationId: string, callback: (err: any) => void): void;
-    private getPageByFilterAsync;
+    private buildPageByFilter;
     private checkItem;
-    private clearAsync;
     private getConnectorByType;
 }

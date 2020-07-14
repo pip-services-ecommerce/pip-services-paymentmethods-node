@@ -48,7 +48,7 @@
 {{#if STRIPE_ENABLED}}
 # Stripe persistence
 - descriptor: "pip-services-paymentmethods:persistence:stripe:default:*"
-  options:
+  connection:
     timeout: 80000
   credential:
     access_key: "{{STRIPE_ACCESS_KEY}}" 

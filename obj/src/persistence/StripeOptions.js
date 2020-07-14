@@ -21,14 +21,14 @@ class StripeOptions {
         /// Default: null
         this.httpAgent = null;
         //this.apiVersion = config.getAsStringWithDefault("options.apiVersion", this.apiVersion);
-        this.maxNetworkRetries = config.getAsIntegerWithDefault("options.maxNetworkRetries", this.maxNetworkRetries);
-        this.timeout = config.getAsIntegerWithDefault("options.timeout", this.timeout);
-        this.host = config.getAsStringWithDefault("options.host", this.host);
-        this.port = config.getAsIntegerWithDefault("options.port", this.port);
-        let protocol = config.getAsStringWithDefault("options.protocol", 'https');
+        this.maxNetworkRetries = config.getAsIntegerWithDefault("maxNetworkRetries", this.maxNetworkRetries);
+        this.timeout = config.getAsIntegerWithDefault("timeout", this.timeout);
+        this.host = config.getAsStringWithDefault("host", this.host);
+        this.port = config.getAsIntegerWithDefault("port", this.port);
+        let protocol = config.getAsStringWithDefault("protocol", 'https');
         this.protocol = protocol == 'https' ? 'https' : 'http';
-        this.telemetry = config.getAsBooleanWithDefault("options.telemetry", this.telemetry);
-        let httpAgent = config.getAsStringWithDefault("options.httpAgent", null);
+        this.telemetry = config.getAsBooleanWithDefault("telemetry", this.telemetry);
+        let httpAgent = config.getAsStringWithDefault("httpAgent", null);
         if (httpAgent != null) {
             {
                 const ProxyAgent = require('https-proxy-agent');
