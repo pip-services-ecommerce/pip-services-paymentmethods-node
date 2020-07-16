@@ -34,7 +34,7 @@
 			// Enable TypeScript debugging
 			"sourceMaps": true,
 			// Redirect VS to find compiled code
-			"outDir": "${workspaceRoot}/obj"
+			"outDir": "${workspaceRoot}/obj",
 		}
     ]
 }

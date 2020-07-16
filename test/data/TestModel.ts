@@ -5,6 +5,7 @@ import { PaymentMethodTypeV1 } from "../../src/data/version1/PaymentMethodTypeV1
 import { PaymentMethodV1 } from "../../src/data/version1/PaymentMethodV1";
 import { CreditCardV1 } from "../../src/data/version1/CreditCardV1";
 import { BankAccountV1 } from "../../src/data/version1/BankAccountV1";
+import { CreditCardBrandV1 } from "../../src";
 
 export class TestModel {
     static createPaymentMethod1() {
@@ -33,7 +34,7 @@ export class TestModel {
             name: 'Visa *5556',
             type: PaymentMethodTypeV1.CreditCard,
             card: {
-                brand: 'VISA',
+                brand: CreditCardBrandV1.Visa,
                 ccv: '921',
                 expire_month: 4,
                 expire_year: 2024,
@@ -52,7 +53,7 @@ export class TestModel {
             name: 'MasterCard *8210',
             type: PaymentMethodTypeV1.CreditCard,
             card: {
-                brand: 'MasterCard',
+                brand: CreditCardBrandV1.Mastercard,
                 ccv: '124',
                 expire_month: 5,
                 expire_year: 2022,
@@ -71,7 +72,7 @@ export class TestModel {
             name: 'Visa *4242',
             type: PaymentMethodTypeV1.CreditCard,
             card: {
-                brand: 'VISA',
+                brand: CreditCardBrandV1.Visa,
                 ccv: '921',
                 expire_month: 4,
                 expire_year: 2024,

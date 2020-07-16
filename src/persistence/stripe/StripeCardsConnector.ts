@@ -138,6 +138,7 @@ export class StripeCardsConnector implements IStripeConnector {
         var customerId = await this.fromPublicCustomerAsync(item.customer_id);
         if (customerId == null) {
             var customer = await this._client.customers.create({
+                description: [item.card.first_name ?? '', item.card.last_name ?? ''].join(' '),
                 metadata: {
                     'customer_id': item.customer_id
                 }
@@ -237,7 +238,7 @@ export class StripeCardsConnector implements IStripeConnector {
             card: {
                 expire_month: item.card.exp_month,
                 expire_year: item.card.exp_year,
-                number: '',
+                number: item.card.last4,
                 ccv: ''
             },
             last4: item.card.last4,

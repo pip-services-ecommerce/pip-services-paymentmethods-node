@@ -235,4 +235,4 @@ client.getPaymentMethods(
 
 ## Acknowledgements
 
-This microservice was created and currently maintained by *Sergey Seroukhov*.
+This microservice was created and currently maintained by *Denis Kuznetsov*.

@@ -37,6 +37,22 @@
     password: {{MONGO_PASS}}
 {{/if}}
 
+{{#if PAYPAL_MONGO_ENABLED}}
+# PayPalMongoDB Persistence
+- descriptor: "pip-services-paymentmethods:persistence:paypal-mongodb:default:1.0"
+  collection: {{MONGO_COLLECTION}}{{#unless MONGO_COLLECTION}}payment_methods{{/unless}}
+  connection:
+    uri: {{{MONGO_SERVICE_URI}}}
+    host: {{{MONGO_SERVICE_HOST}}}{{#unless MONGO_SERVICE_HOST}}localhost{{/unless}}
+    port: {{MONGO_SERVICE_PORT}}{{#unless MONGO_SERVICE_PORT}}27017{{/unless}}
+    database: {{MONGO_DB}}{{#unless MONGO_DB}}app{{/unless}}
+  credential:
+    username: {{MONGO_USER}}
+    password: {{MONGO_PASS}}
+    access_id: "{{PAYPAL_ACCESS_ID}}"
+    access_key: "{{PAYPAL_ACCESS_KEY}}"
+{{/if}}
+
 {{#if PAYPAL_ENABLED}}
 # PayPal persistence
 - descriptor: "pip-services-paymentmethods:persistence:paypal:default:*"
@@ -54,10 +70,10 @@
     access_key: "{{STRIPE_ACCESS_KEY}}" 
 {{/if}}
 
-{{#unless MEMORY_ENABLED}}{{#unless FILE_ENABLED}}{{#unless MONGO_ENABLED}}{{#unless PAYPAL_ENABLED}}
+{{#unless MEMORY_ENABLED}}{{#unless FILE_ENABLED}}{{#unless MONGO_ENABLED}}{{#unless PAYPAL_MONGO_ENABLED}}{{#unless PAYPAL_ENABLED}}{{#unless STRIPE_ENABLED}}
 # Default in-memory persistence
 - descriptor: "pip-services-paymentmethods:persistence:memory:default:1.0"
-{{/unless}}{{/unless}}{{/unless}}{{/unless}}
+{{/unless}}{{/unless}}{{/unless}}{{/unless}}{{/unless}}{{/unless}}
 
 # Default controller
 - descriptor: "pip-services-paymentmethods:controller:default:default:1.0"
