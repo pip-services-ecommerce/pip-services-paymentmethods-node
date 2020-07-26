@@ -11,6 +11,7 @@ export class PaymentMethodV1 implements IStringIdentifiable {
     public create_time?: Date;
     public update_time?: Date;
 
+    public payout: boolean;
     public type: string;
     public card?: CreditCardV1;
     public account?: BankAccountV1;

@@ -68,7 +68,7 @@ class PaymentMethodsPayPalMongoDbPersistence {
                 return;
             }
             if (page) {
-                let cardIds = page.data.filter(x => x.type == PaymentMethodTypeV1_1.PaymentMethodTypeV1.CreditCard).map(x => x.id);
+                let cardIds = page.data.filter(x => x.type == PaymentMethodTypeV1_1.PaymentMethodTypeV1.Card).map(x => x.id);
                 if (cardIds.length == 0) {
                     if (callback)
                         callback(err, page);
@@ -97,7 +97,7 @@ class PaymentMethodsPayPalMongoDbPersistence {
     }
     getById(correlationId, id, customerId, callback) {
         this._mongoPersistence.getOneById(correlationId, id, (err, item) => {
-            if (err || !item || item.type != PaymentMethodTypeV1_1.PaymentMethodTypeV1.CreditCard) {
+            if (err || !item || item.type != PaymentMethodTypeV1_1.PaymentMethodTypeV1.Card || item.payout) {
                 if (callback)
                     callback(err, item);
                 return;
@@ -106,7 +106,7 @@ class PaymentMethodsPayPalMongoDbPersistence {
         });
     }
     create(correlationId, item, callback) {
-        if (item.type == PaymentMethodTypeV1_1.PaymentMethodTypeV1.CreditCard) {
+        if (item.type == PaymentMethodTypeV1_1.PaymentMethodTypeV1.Card && !item.payout) {
             this._payPalPersistence.create(correlationId, item, (err, item) => {
                 if (err) {
                     if (callback)
@@ -122,7 +122,7 @@ class PaymentMethodsPayPalMongoDbPersistence {
         }
     }
     update(correlationId, item, callback) {
-        if (item.type == PaymentMethodTypeV1_1.PaymentMethodTypeV1.CreditCard) {
+        if (item.type == PaymentMethodTypeV1_1.PaymentMethodTypeV1.Card && !item.payout) {
             this._payPalPersistence.update(correlationId, item, (err, item) => {
                 if (err) {
                     if (callback)
@@ -139,7 +139,7 @@ class PaymentMethodsPayPalMongoDbPersistence {
     }
     delete(correlationId, id, customerId, callback) {
         this._mongoPersistence.delete(correlationId, id, customerId, (err, item) => {
-            if (err || !item || item.type != PaymentMethodTypeV1_1.PaymentMethodTypeV1.CreditCard) {
+            if (err || !item || item.type != PaymentMethodTypeV1_1.PaymentMethodTypeV1.Card || item.payout) {
                 if (callback)
                     callback(err, item);
                 return;

@@ -83,7 +83,8 @@ export class PaymentMethodsPayPalPersistence implements IPaymentMethodsPersisten
         //     'external_method_id', 'valid_until', 'create_time', 'update_time', 'links');
         let result = new PaymentMethodV1();
         result.id = value.id;
-        result.type = PaymentMethodTypeV1.CreditCard;
+        result.type = PaymentMethodTypeV1.Card;
+        result.payout = false;
         result.card = new CreditCardV1();
         result.card.brand = value.type;
         result.card.expire_month = parseInt(value.expire_month);
@@ -166,6 +167,8 @@ export class PaymentMethodsPayPalPersistence implements IPaymentMethodsPersisten
         let customerId = filter.getAsNullableString('customer_id');
         let saved = filter.getAsNullableBoolean('saved');
         let ids = filter.getAsObject('ids');
+        let _default = filter.getAsNullableBoolean('default');
+        let payout = filter.getAsNullableBoolean('payout');
 
         // Process ids filter
         if (_.isString(ids))
@@ -211,6 +214,10 @@ export class PaymentMethodsPayPalPersistence implements IPaymentMethodsPersisten
                             continue;
                         if (ids != null && _.indexOf(ids, item.id) < 0)
                             continue;
+                        if (_default != null && item.default != null && item.default != _default)
+                            continue;
+                        if (payout != null && item.payout != payout)
+                            continue;
 
                         // Process skip and take
                         if (skip > 0) {
@@ -247,9 +254,15 @@ export class PaymentMethodsPayPalPersistence implements IPaymentMethodsPersisten
     public create(correlationId: string, item: PaymentMethodV1,
         callback: (err: any, item: PaymentMethodV1) => void): void {
 
-        if (item.type != PaymentMethodTypeV1.CreditCard) {
-            callback(new BadRequestException(correlationId, 'ERR_PAYMENT_TYPE', 'Payment type not supported')
-                .withDetails('item.type', item.type), null);
+        if (item.type != PaymentMethodTypeV1.Card) {
+            callback(new BadRequestException(correlationId, 'ERR_PAYMENTMETHOD_TYPE', 'Payment method type not supported')
+                .withDetails('item', item), null);
+            return;
+        }
+
+        if (item.payout) {
+            callback(new BadRequestException(correlationId, 'ERR_PAYMENTMETHOD_PAYOUT', 'Payment method payout not supported')
+                .withDetails('item', item), null);
             return;
         }
 
@@ -279,9 +292,15 @@ export class PaymentMethodsPayPalPersistence implements IPaymentMethodsPersisten
     public update(correlationId: string, item: PaymentMethodV1,
         callback: (err: any, item: PaymentMethodV1) => void): void {
 
-        if (item.type != PaymentMethodTypeV1.CreditCard) {
-            callback(new BadRequestException(correlationId, 'ERR_PAYMENT_TYPE', 'Payment type not supported')
-                .withDetails('item.type', item.type), null);
+        if (item.type != PaymentMethodTypeV1.Card) {
+            callback(new BadRequestException(correlationId, 'ERR_PAYMENTMETHOD_TYPE', 'Payment method type not supported')
+                .withDetails('item', item), null);
+            return;
+        }
+
+        if (item.payout) {
+            callback(new BadRequestException(correlationId, 'ERR_PAYMENTMETHOD_PAYOUT', 'Payment method payout not supported')
+                .withDetails('item', item), null);
             return;
         }
 

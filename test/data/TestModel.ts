@@ -13,6 +13,7 @@ export class TestModel {
             id: '1',
             customer_id: '1',
             name: 'BANK OF AMERICA',
+            payout: false,
             type: PaymentMethodTypeV1.BankAccount,
             account: {
                 bank_code: 'BOFAUS3MXXX',
@@ -32,7 +33,8 @@ export class TestModel {
             id: '2',
             customer_id: '1',
             name: 'Visa *5556',
-            type: PaymentMethodTypeV1.CreditCard,
+            payout: false,
+            type: PaymentMethodTypeV1.Card,
             card: {
                 brand: CreditCardBrandV1.Visa,
                 ccv: '921',
@@ -51,7 +53,8 @@ export class TestModel {
             id: '3',
             customer_id: '2',
             name: 'MasterCard *8210',
-            type: PaymentMethodTypeV1.CreditCard,
+            payout: false,
+            type: PaymentMethodTypeV1.Card,
             card: {
                 brand: CreditCardBrandV1.Mastercard,
                 ccv: '124',
@@ -70,7 +73,8 @@ export class TestModel {
             id: '4',
             customer_id: '1',
             name: 'Visa *4242',
-            type: PaymentMethodTypeV1.CreditCard,
+            payout: false,
+            type: PaymentMethodTypeV1.Card,
             card: {
                 brand: CreditCardBrandV1.Visa,
                 ccv: '921',
@@ -84,6 +88,46 @@ export class TestModel {
         };
     }
 
+    static createPayoutCard() {
+        return {
+            id: '4',
+            customer_id: '10',
+            name: 'Visa *4242',
+            payout: false,
+            type: PaymentMethodTypeV1.Card,
+            card: {
+                brand: CreditCardBrandV1.Visa,
+                ccv: '921',
+                expire_month: 4,
+                expire_year: 2024,
+                first_name: 'Steve',
+                last_name: 'Jobs',
+                number: '4242424242424242',
+                state: CreditCardStateV1.Ok
+            }
+        };
+    }
+
+    static createPayoutBankAccount() {
+        return {
+            id: '1',
+            customer_id: '11',
+            name: 'BANK OF AMERICA',
+            payout: false,
+            type: PaymentMethodTypeV1.BankAccount,
+            account: {
+                bank_code: 'BOFAUS3MXXX',
+                first_name: 'Joe',
+                last_name: 'Dow',
+                number: '000123456789',
+                branch_code: 'DOWNTOWN MIAMI',
+                currency: 'USD',
+                country: 'US',
+                routing_number: "110000000"
+            }
+        };
+    }
+
     static assertEqualPaymentMethod(actual: PaymentMethodV1, expected: PaymentMethodV1) {
         assert.isNotNull(actual);
         assert.isNotNull(expected);
@@ -91,7 +135,7 @@ export class TestModel {
         assert.equal(actual.type, expected.type);
         assert.equal(actual.customer_id, expected.customer_id);
 
-        if (actual.type == PaymentMethodTypeV1.CreditCard) {
+        if (actual.type == PaymentMethodTypeV1.Card) {
             this.assertEqualCard(actual.card, expected.card);
         }
         if (actual.type == PaymentMethodTypeV1.BankAccount) {

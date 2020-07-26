@@ -9,6 +9,7 @@ import { PaymentMethodTypeV1 } from '../../src/data/version1/PaymentMethodTypeV1
 
 import { IPaymentMethodsPersistence } from '../../src/persistence/IPaymentMethodsPersistence';
 import { TestModel } from '../data/TestModel';
+import { Test } from 'mocha';
 
 
 
@@ -30,9 +31,8 @@ export class PaymentMethodsPersistenceFixture {
         this._persistence = persistence;
 
         paymentMethods = paymentMethods ?? this.PAYMENT_METHODS;
-        
-        if (paymentMethods)
-        {
+
+        if (paymentMethods) {
             if (paymentMethods.length > 0) this.PAYMENT_METHOD1 = paymentMethods[0];
             if (paymentMethods.length > 1) this.PAYMENT_METHOD2 = paymentMethods[1];
             if (paymentMethods.length > 2) this.PAYMENT_METHOD3 = paymentMethods[2];
@@ -49,6 +49,11 @@ export class PaymentMethodsPersistenceFixture {
                     null,
                     this.PAYMENT_METHOD1,
                     (err, paymentMethod) => {
+                        if (err) {
+                            console.log('[testCreatePaymentMethods] Create one payment method');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
                         assert.isObject(paymentMethod);
                         TestModel.assertEqualPaymentMethod(paymentMethod, this.PAYMENT_METHOD1);
@@ -65,6 +70,11 @@ export class PaymentMethodsPersistenceFixture {
                     null,
                     this.PAYMENT_METHOD2,
                     (err, paymentMethod) => {
+                        if (err) {
+                            console.log('[testCreatePaymentMethods] Create another payment method');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
                         assert.isObject(paymentMethod);
                         TestModel.assertEqualPaymentMethod(paymentMethod, this.PAYMENT_METHOD2);
@@ -81,6 +91,11 @@ export class PaymentMethodsPersistenceFixture {
                     null,
                     this.PAYMENT_METHOD3,
                     (err, paymentMethod) => {
+                        if (err) {
+                            console.log('[testCreatePaymentMethods] Create yet another payment method');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
                         assert.isObject(paymentMethod);
                         TestModel.assertEqualPaymentMethod(paymentMethod, this.PAYMENT_METHOD3);
@@ -106,9 +121,16 @@ export class PaymentMethodsPersistenceFixture {
             (callback) => {
                 this._persistence.getPageByFilter(
                     null,
-                    new FilterParams(),
+                    FilterParams.fromValue({
+                        payout: false
+                    }),
                     new PagingParams(),
                     (err, page) => {
+                        if (err) {
+                            console.log('[testCrudOperations] Get all payment methods');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
 
                         assert.isObject(page);
@@ -128,6 +150,11 @@ export class PaymentMethodsPersistenceFixture {
                     null,
                     paymentMethod1,
                     (err, paymentMethod) => {
+                        if (err) {
+                            console.log('[testCrudOperations] Update the payment method');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
 
                         assert.isObject(paymentMethod);
@@ -146,6 +173,11 @@ export class PaymentMethodsPersistenceFixture {
                     paymentMethod1.id,
                     paymentMethod1.customer_id,
                     (err) => {
+                        if (err) {
+                            console.log('[testCrudOperations] Delete payment method');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
 
                         callback();
@@ -159,6 +191,11 @@ export class PaymentMethodsPersistenceFixture {
                     paymentMethod1.id,
                     paymentMethod1.customer_id,
                     (err, paymentMethod) => {
+                        if (err) {
+                            console.log('[testCrudOperations] Try to get deleted payment method');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
 
                         assert.isNull(paymentMethod || null);
@@ -181,10 +218,16 @@ export class PaymentMethodsPersistenceFixture {
                 this._persistence.getPageByFilter(
                     null,
                     FilterParams.fromValue({
-                        customer_id: '1'
+                        customer_id: '1',
+                        payout: false
                     }),
                     new PagingParams(),
                     (err, page) => {
+                        if (err) {
+                            console.log('[testGetWithFilter] Get payment methods filtered by customer id');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
 
                         assert.isObject(page);
@@ -199,15 +242,21 @@ export class PaymentMethodsPersistenceFixture {
                 this._persistence.getPageByFilter(
                     null,
                     FilterParams.fromValue({
-                        type: PaymentMethodTypeV1.CreditCard
+                        type: PaymentMethodTypeV1.Card,
+                        payout: false
                     }),
                     new PagingParams(),
                     (err, page) => {
+                        if (err) {
+                            console.log('[testGetWithFilter] Get payment methods by type');
+                            console.log(err);
+                        }
+
                         assert.isNull(err);
 
                         assert.isObject(page);
 
-                        let cardsCount = this.PAYMENT_METHODS.filter(x => x.type == PaymentMethodTypeV1.CreditCard).length;
+                        let cardsCount = this.PAYMENT_METHODS.filter(x => x.type == PaymentMethodTypeV1.Card).length;
                         assert.lengthOf(page.data, cardsCount);
 
                         callback();
@@ -219,10 +268,16 @@ export class PaymentMethodsPersistenceFixture {
                 this._persistence.getPageByFilter(
                     null,
                     FilterParams.fromValue({
-                        ids: [this.PAYMENT_METHODS[0].id, this.PAYMENT_METHODS[2].id]
+                        ids: [this.PAYMENT_METHODS[0].id, this.PAYMENT_METHODS[2].id],
+                        payout: false
                     }),
                     new PagingParams(),
                     (err, page) => {
+                        if (err) {
+                            console.log('[testGetWithFilter] Get payment methods by ids');
+                            console.log(err);
+                        }
+                        
                         assert.isNull(err);
 
                         assert.isObject(page);
@@ -235,4 +290,61 @@ export class PaymentMethodsPersistenceFixture {
         ], done);
     }
 
+    testExternalBankAccount(done) {
+        let bankAccount = TestModel.createPayoutBankAccount();
+
+        async.series([
+            // Create external bank account
+            (callback) => {
+                this._persistence.create(
+                    null,
+                    bankAccount,
+                    (err, paymentMethod) => {
+                        if (err) {
+                            console.log('[testExternalBankAccount] Create bank account');
+                            console.log(err);
+                        }
+
+                        assert.isNull(err);
+                        assert.isObject(paymentMethod);
+                        TestModel.assertEqualPaymentMethod(paymentMethod, bankAccount);
+
+                        callback();
+                    }
+                );
+            },
+            // Get payment methods by type
+            (callback) => {
+                this._persistence.getPageByFilter(
+                    null,
+                    FilterParams.fromValue({
+                        type: PaymentMethodTypeV1.BankAccount,
+                        payout: true
+                    }),
+                    new PagingParams(),
+                    (err, page) => {
+                        if (err) {
+                            console.log('[testExternalBankAccount] Get payment methods by type');
+                            console.log(err);
+                        }
+
+                        assert.isNull(err);
+
+                        assert.isObject(page);
+
+                        let cardsCount = this.PAYMENT_METHODS.filter(x => x.type == PaymentMethodTypeV1.Card).length;
+                        assert.lengthOf(page.data, cardsCount);
+
+                        callback();
+                    }
+                );
+            },
+        ], done);
+    }
+
+    testExternalCard(done) {
+        async.series([
+            
+        ], done);
+    }
 }

@@ -12,6 +12,7 @@ class PaymentMethodV1Schema extends pip_services3_commons_node_1.ObjectSchema {
         this.withRequiredProperty('customer_id', pip_services3_commons_node_2.TypeCode.String);
         this.withOptionalProperty('create_time', pip_services3_commons_node_2.TypeCode.DateTime);
         this.withOptionalProperty('update_time', pip_services3_commons_node_2.TypeCode.DateTime);
+        this.withRequiredProperty('payout', pip_services3_commons_node_2.TypeCode.Boolean);
         this.withRequiredProperty('type', pip_services3_commons_node_2.TypeCode.String);
         this.withOptionalProperty('card', new CreditCardV1Schema_1.CreditCardV1Schema());
         this.withOptionalProperty('account', new BankAccountV1Schema_1.BankAccountV1Schema());

@@ -12,6 +12,8 @@ import { IPaymentMethodsPersistence } from './IPaymentMethodsPersistence';
 export declare class PaymentMethodsStripePersistence implements IPaymentMethodsPersistence, IConfigurable, IReferenceable, IOpenable, ICleanable {
     private _stripeCardsConnector;
     private _stripeBankAccountsConnector;
+    private _stripeExternalCardsConnector;
+    private _stripeExternalBankAccountsConnector;
     constructor();
     configure(config: ConfigParams): void;
     setReferences(references: IReferences): void;

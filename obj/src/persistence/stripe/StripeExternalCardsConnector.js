@@ -14,15 +14,13 @@ const pip_services3_commons_node_1 = require("pip-services3-commons-node");
 const pip_services3_commons_node_2 = require("pip-services3-commons-node");
 const pip_services3_commons_node_3 = require("pip-services3-commons-node");
 const stripe_1 = require("stripe");
-const util_1 = require("util");
 const StripeOptions_1 = require("../StripeOptions");
 const pip_services3_components_node_1 = require("pip-services3-components-node");
 const pip_services3_components_node_2 = require("pip-services3-components-node");
 const pip_services3_components_node_3 = require("pip-services3-components-node");
 const version1_1 = require("../../data/version1");
-const version1_2 = require("../../data/version1");
 const StripeTools_1 = require("./StripeTools");
-class StripeCardsConnector {
+class StripeExternalCardsConnector {
     constructor() {
         this._client = null;
         this._connectionResolver = new pip_services3_components_node_1.ConnectionResolver();
@@ -87,23 +85,22 @@ class StripeCardsConnector {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
             let customer_id = (_a = filter) === null || _a === void 0 ? void 0 : _a.getAsString('customer_id');
-            let customerId = customer_id ? yield this.fromPublicCustomerAsync(customer_id) : null;
+            let customAccount = customer_id ? yield this.findCustomAccountAsync(customer_id) : null;
             let skip = paging.getSkip(0);
             let take = paging.getTake(100);
-            let ids = customerId ? [customerId] : yield this.getAllCustomerIds();
+            let customAccounts = customAccount ? [customAccount] : yield this.getAllCustomAccounts();
             let data = [];
-            for (let i = 0; i < ids.length; i++) {
-                const id = ids[i];
-                let items = yield this._client.paymentMethods.list({
-                    customer: id,
-                    type: "card",
-                    //starting_after: skip,
+            for (let i = 0; i < customAccounts.length; i++) {
+                const customAccount = customAccounts[i];
+                let items = yield this._client.accounts.listExternalAccounts(customAccount.id, {
+                    // object: 'bank_account', -- error in stripe sdk: filter by object type is not supported
                     limit: skip + take,
-                    expand: ['data.billing_details', 'data.card']
                 });
                 for (let j = 0; j < items.data.length; j++) {
                     const item = items.data[j];
-                    data.push(yield this.toPublicAsync(item));
+                    if (item.object != 'card')
+                        continue;
+                    data.push(yield this.toPublicAsync(customAccount, item));
                 }
             }
             return new pip_services3_commons_node_2.DataPage(data);
@@ -111,90 +108,64 @@ class StripeCardsConnector {
     }
     getByIdAsync(correlationId, id, customerId) {
         return __awaiter(this, void 0, void 0, function* () {
-            var customer_id = yield this.fromPublicCustomerAsync(customerId);
-            let paymentMethod = yield StripeTools_1.StripeTools.errorSuppression(this._client.paymentMethods.retrieve(id, {
-                expand: ['billing_details', 'card']
-            }));
-            return paymentMethod && paymentMethod.customer == customer_id
-                ? yield this.toPublicAsync(paymentMethod)
-                : null;
+            var customAccount = yield this.findCustomAccountAsync(customerId);
+            if (!customAccount)
+                return null;
+            var card = yield this.retrieveCardAsync(correlationId, id, customAccount.id);
+            return card ? yield this.toPublicAsync(customAccount, card) : null;
         });
     }
     createAsync(correlationId, item) {
-        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            var customerId = yield this.fromPublicCustomerAsync(item.customer_id);
-            if (customerId == null) {
-                var customer = yield this._client.customers.create({
-                    description: [(_a = item.card.first_name, (_a !== null && _a !== void 0 ? _a : '')), (_b = item.card.last_name, (_b !== null && _b !== void 0 ? _b : ''))].join(' '),
-                    metadata: {
-                        'customer_id': item.customer_id
-                    }
-                });
-                customerId = customer.id;
-            }
-            let card = item.card;
-            let address = item.billing_address || new version1_2.AddressV1();
-            let paymentMethod = yield this._client.paymentMethods.create({
-                type: 'card',
-                card: {
-                    exp_month: card.expire_month,
-                    exp_year: card.expire_year,
-                    number: card.number,
-                    cvc: card.ccv
-                },
-                billing_details: {
-                    address: {
-                        city: address.city,
-                        country: address.country_code,
-                        line1: address.line1,
-                        line2: address.line2,
-                        postal_code: address.postal_code,
-                        state: address.state
-                    },
-                    name: card.first_name + ' ' + card.last_name,
-                },
+            var customAccount = yield this.getOrCreateCustomAccountAsync(item);
+            let tokenId = yield this.createToken(item);
+            let externalAccount = yield this._client.accounts.createExternalAccount(customAccount.id, {
+                external_account: tokenId,
+                default_for_currency: item.default,
                 metadata: this.toMetadata(item),
             });
-            paymentMethod = yield this._client.paymentMethods.attach(paymentMethod.id, { customer: customerId });
-            return yield this.toPublicAsync(paymentMethod);
+            return yield this.toPublicAsync(customAccount, externalAccount);
         });
     }
     updateAsync(correlationId, item) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l;
+        var _a, _b, _c, _d, _e, _f;
         return __awaiter(this, void 0, void 0, function* () {
+            var customAccount = yield this.getOrCreateCustomAccountAsync(item);
             let card = item.card;
             let address = item.billing_address;
-            let updateParams = {
-                card: {
-                    exp_month: card.expire_month,
-                    exp_year: card.expire_year,
-                },
+            let externalAccount = yield this._client.accounts.updateExternalAccount(customAccount.id, item.id, {
+                exp_month: card.expire_month.toString(),
+                exp_year: card.expire_year.toString(),
+                address_city: (_a = address) === null || _a === void 0 ? void 0 : _a.city,
+                address_country: (_b = address) === null || _b === void 0 ? void 0 : _b.country_code,
+                address_line1: (_c = address) === null || _c === void 0 ? void 0 : _c.line1,
+                address_line2: (_d = address) === null || _d === void 0 ? void 0 : _d.line2,
+                address_state: (_e = address) === null || _e === void 0 ? void 0 : _e.state,
+                address_zip: (_f = address) === null || _f === void 0 ? void 0 : _f.postal_code,
+                default_for_currency: item.default,
+                name: card.first_name + ' ' + card.last_name,
                 metadata: this.toMetadata(item),
-            };
-            if (address.city || address.country_code || address.line1) {
-                updateParams.billing_details = {
-                    address: {
-                        city: (_b = (_a = address) === null || _a === void 0 ? void 0 : _a.city, (_b !== null && _b !== void 0 ? _b : '')),
-                        country: (_c = address) === null || _c === void 0 ? void 0 : _c.country_code,
-                        line1: (_e = (_d = address) === null || _d === void 0 ? void 0 : _d.line1, (_e !== null && _e !== void 0 ? _e : '')),
-                        line2: (_g = (_f = address) === null || _f === void 0 ? void 0 : _f.line2, (_g !== null && _g !== void 0 ? _g : '')),
-                        postal_code: (_j = (_h = address) === null || _h === void 0 ? void 0 : _h.postal_code, (_j !== null && _j !== void 0 ? _j : '')),
-                        state: (_l = (_k = address) === null || _k === void 0 ? void 0 : _k.state, (_l !== null && _l !== void 0 ? _l : ''))
-                    },
-                    name: card.first_name + ' ' + card.last_name
-                };
-            }
-            let paymentMethod = yield this._client.paymentMethods.update(item.id, updateParams);
-            return yield this.toPublicAsync(paymentMethod);
+            });
+            return yield this.toPublicAsync(customAccount, externalAccount);
         });
     }
-    deleteAsync(correlationId, id) {
+    deleteAsync(correlationId, id, customerId) {
         return __awaiter(this, void 0, void 0, function* () {
-            let paymentMethod = yield StripeTools_1.StripeTools.errorSuppression(this._client.paymentMethods.detach(id, {
-                expand: ['billing_details', 'card']
-            }));
-            return paymentMethod ? yield this.toPublicAsync(paymentMethod) : null;
+            var customAccount = yield this.findCustomAccountAsync(customerId);
+            if (!customAccount)
+                return null;
+            var card = yield this.retrieveCardAsync(correlationId, id, customAccount.id);
+            if (card) {
+                if (card.default_for_currency) {
+                    this._logger.warn(correlationId, 'You cannot delete the default external account for your default currency. Please make another external account the default using the `default_for_currency` param, and then delete this one.');
+                    return null;
+                }
+                let deletedCard = yield StripeTools_1.StripeTools.errorSuppression(this._client.accounts.deleteExternalAccount(customAccount.id, id));
+                if (deletedCard && deletedCard.deleted) {
+                    return yield this.toPublicAsync(customAccount, card);
+                }
+            }
+            return null;
         });
     }
     clearAsync(correlationId) {
@@ -204,84 +175,118 @@ class StripeCardsConnector {
             let page = yield this.getPageByFilterAsync(correlationId, filter, paging);
             for (let i = 0; i < page.data.length; i++) {
                 const paymentMethod = page.data[i];
-                yield this.deleteAsync(correlationId, paymentMethod.id);
+                yield this.deleteAsync(correlationId, paymentMethod.id, paymentMethod.customer_id);
             }
         });
     }
-    toPublicAsync(item) {
-        var _a;
+    retrieveCardAsync(correlationId, id, customAccountId) {
         return __awaiter(this, void 0, void 0, function* () {
-            let customer_id = yield this.toPublicCustomerAsync(util_1.isString(item.customer) ? item.customer : (_a = item.customer) === null || _a === void 0 ? void 0 : _a.id);
+            let externalAccount = yield StripeTools_1.StripeTools.errorSuppression(this._client.accounts.retrieveExternalAccount(customAccountId, id, {
+                expand: ['metadata']
+            }));
+            return externalAccount;
+        });
+    }
+    getOrCreateCustomAccountAsync(item) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var customAccount = yield this.findCustomAccountAsync(item.customer_id);
+            if (!customAccount) {
+                customAccount = yield this._client.accounts.create({
+                    type: 'custom',
+                    business_type: 'individual',
+                    business_profile: {
+                        mcc: '1520',
+                        url: 'http://unknown.com/'
+                    },
+                    requested_capabilities: [
+                        //'card_payments',
+                        'transfers',
+                    ],
+                    metadata: {
+                        'customer_id': item.customer_id
+                    }
+                });
+            }
+            return customAccount;
+        });
+    }
+    toPublicAsync(customAccount, item) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let customer_id = customAccount.metadata['customer_id'].toString();
             var method = {
                 id: item.id,
-                payout: false,
+                payout: true,
                 type: version1_1.PaymentMethodTypeV1.Card,
                 customer_id: customer_id,
                 card: {
-                    expire_month: item.card.exp_month,
-                    expire_year: item.card.exp_year,
-                    number: item.card.last4,
+                    expire_month: item.exp_month,
+                    expire_year: item.exp_year,
+                    number: item.last4,
                     ccv: ''
                 },
-                last4: item.card.last4,
+                last4: item.last4,
                 billing_address: {
-                    city: item.billing_details.address.city,
-                    country_code: item.billing_details.address.country,
-                    line1: item.billing_details.address.line1,
-                    line2: item.billing_details.address.line2,
-                    postal_code: item.billing_details.address.postal_code,
-                    state: item.billing_details.address.state
-                },
-                create_time: new Date(item.created),
+                    city: item.address_city,
+                    country_code: item.address_country,
+                    line1: item.address_line1,
+                    line2: item.address_line2,
+                    postal_code: item.address_zip,
+                    state: item.address_state
+                }
             };
             this.fromMetadata(method, item.metadata);
             return method;
         });
     }
-    toPublicCustomerAsync(customer_id) {
+    findCustomAccountAsync(customer_id) {
         return __awaiter(this, void 0, void 0, function* () {
             if (customer_id) {
-                let item = yield this._client.customers.retrieve(customer_id, {});
-                let customer = item;
-                if (customer) {
-                    return customer.metadata['customer_id'].toString();
-                }
+                return yield StripeTools_1.StripeTools.findItem(p => this._client.accounts.list(p), x => x.metadata && x.metadata['customer_id'] == customer_id, x => x.id);
             }
             return null;
         });
     }
-    fromPublicCustomerAsync(customer_id) {
+    createToken(paymentMethod) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (customer_id) {
-                var customers = yield this._client.customers.list({});
-                for (let index = 0; index < customers.data.length; index++) {
-                    const customer = customers.data[index];
-                    if (customer.metadata['customer_id'] == customer_id) {
-                        return customer.id;
-                    }
-                }
-            }
-            return null;
+            let card = paymentMethod.card;
+            let token = yield this._client.tokens.create({
+                card: {
+                    //name: card.?
+                    //currency: card.?
+                    exp_month: card.expire_month.toString(),
+                    exp_year: card.expire_year.toString(),
+                    number: card.number,
+                    cvc: card.ccv,
+                    address_city: paymentMethod.billing_address.city,
+                    address_country: paymentMethod.billing_address.country_code,
+                    address_line1: paymentMethod.billing_address.line1,
+                    address_line2: paymentMethod.billing_address.line2,
+                    address_state: paymentMethod.billing_address.state,
+                    address_zip: paymentMethod.billing_address.postal_code,
+                },
+            });
+            return token.id;
         });
     }
-    getAllCustomerIds() {
+    getAllCustomAccounts() {
         return __awaiter(this, void 0, void 0, function* () {
-            let ids = [];
+            let customAccounts = [];
             let pageSize = 100;
             do {
-                let options = ids.length == 0
-                    ? {
+                let options;
+                if (customAccounts.length == 0)
+                    options = {
                         limit: pageSize
-                    }
-                    : {
-                        limit: pageSize,
-                        starting_after: ids[ids.length - 1]
                     };
-                if (ids.length == 0)
-                    var items = yield this._client.customers.list(options);
-                ids.push(...items.data.map((item, index, array) => item.id));
+                else
+                    options = {
+                        limit: pageSize,
+                        starting_after: customAccounts[customAccounts.length - 1].id
+                    };
+                var items = yield this._client.accounts.list(options);
+                customAccounts.push(...items.data);
             } while (items.has_more);
-            return ids;
+            return customAccounts;
         });
     }
     toMetadata(item) {
@@ -309,5 +314,5 @@ class StripeCardsConnector {
         }
     }
 }
-exports.StripeCardsConnector = StripeCardsConnector;
-//# sourceMappingURL=StripeCardsConnector.js.map
+exports.StripeExternalCardsConnector = StripeExternalCardsConnector;
+//# sourceMappingURL=StripeExternalCardsConnector.js.map

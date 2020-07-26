@@ -14,7 +14,6 @@ const pip_services3_commons_node_1 = require("pip-services3-commons-node");
 const pip_services3_commons_node_2 = require("pip-services3-commons-node");
 const pip_services3_commons_node_3 = require("pip-services3-commons-node");
 const stripe_1 = require("stripe");
-const util_1 = require("util");
 const StripeOptions_1 = require("../StripeOptions");
 const pip_services3_components_node_1 = require("pip-services3-components-node");
 const pip_services3_components_node_2 = require("pip-services3-components-node");
@@ -22,7 +21,7 @@ const pip_services3_components_node_3 = require("pip-services3-components-node")
 const version1_1 = require("../../data/version1");
 const version1_2 = require("../../data/version1");
 const StripeTools_1 = require("./StripeTools");
-class StripeBankAccountsConnector {
+class StripeExternalBankAccountsConnector {
     constructor() {
         this._client = null;
         this._connectionResolver = new pip_services3_components_node_1.ConnectionResolver();
@@ -87,20 +86,22 @@ class StripeBankAccountsConnector {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
             let customer_id = (_a = filter) === null || _a === void 0 ? void 0 : _a.getAsString('customer_id');
-            let customerId = customer_id ? yield this.fromPublicCustomerAsync(customer_id) : null;
+            let customAccount = customer_id ? yield this.findCustomAccountAsync(customer_id) : null;
             let skip = paging.getSkip(0);
             let take = paging.getTake(100);
-            let ids = customerId ? [customerId] : yield this.getAllCustomerIds();
+            let customAccounts = customAccount ? [customAccount] : yield this.getAllCustomAccounts();
             let data = [];
-            for (let i = 0; i < ids.length; i++) {
-                const id = ids[i];
-                let items = yield this._client.customers.listSources(id, {
-                    object: 'bank_account',
+            for (let i = 0; i < customAccounts.length; i++) {
+                const customAccount = customAccounts[i];
+                let items = yield this._client.accounts.listExternalAccounts(customAccount.id, {
+                    // object: 'bank_account', -- error in stripe sdk: filter by object type is not supported
                     limit: skip + take,
                 });
                 for (let j = 0; j < items.data.length; j++) {
                     const item = items.data[j];
-                    data.push(yield this.toPublicAsync(item));
+                    if (item.object != 'bank_account')
+                        continue;
+                    data.push(yield this.toPublicAsync(customAccount, item));
                 }
             }
             return new pip_services3_commons_node_2.DataPage(data);
@@ -108,55 +109,52 @@ class StripeBankAccountsConnector {
     }
     getByIdAsync(correlationId, id, customerId) {
         return __awaiter(this, void 0, void 0, function* () {
-            var customer_id = yield this.fromPublicCustomerAsync(customerId);
-            let customerSource = yield StripeTools_1.StripeTools.errorSuppression(this._client.customers.retrieveSource(customer_id, id, {
-                expand: ['metadata']
-            }));
-            return customerSource ? yield this.toPublicAsync(customerSource) : null;
+            var customAccount = yield this.findCustomAccountAsync(customerId);
+            if (!customAccount)
+                return null;
+            var bankAccount = yield this.retrieveBankAccountAsync(correlationId, id, customAccount.id);
+            return bankAccount ? yield this.toPublicAsync(customAccount, bankAccount) : null;
         });
     }
     createAsync(correlationId, item) {
         return __awaiter(this, void 0, void 0, function* () {
-            var customerId = yield this.getCustomerIdAsync(item);
-            let account = item.account;
-            let bankToken = yield this._client.tokens.create({
-                bank_account: {
-                    account_number: account.number,
-                    country: account.country,
-                    currency: account.currency,
-                    account_holder_name: account.first_name + ' ' + account.last_name,
-                    account_holder_type: 'individual',
-                    routing_number: account.routing_number
-                },
-            });
-            let customerSource = yield this._client.customers.createSource(customerId, {
-                source: bankToken.id,
+            var customAccount = yield this.getOrCreateCustomAccountAsync(item);
+            let tokenId = yield this.createToken(item);
+            let externalAccount = yield this._client.accounts.createExternalAccount(customAccount.id, {
+                external_account: tokenId,
                 metadata: this.toMetadata(item),
             });
-            return yield this.toPublicAsync(customerSource);
+            return yield this.toPublicAsync(customAccount, externalAccount);
         });
     }
     updateAsync(correlationId, item) {
         return __awaiter(this, void 0, void 0, function* () {
-            var customerId = yield this.getCustomerIdAsync(item);
+            var customAccount = yield this.getOrCreateCustomAccountAsync(item);
             let account = item.account;
             // Updates the account_holder_name, account_holder_type, and metadata of a bank account belonging to a customer. 
             // Other bank account details are not editable, by design.
-            let customerSource = yield this._client.customers.updateSource(customerId, item.id, {
+            let externalAccount = yield this._client.accounts.updateExternalAccount(customAccount.id, item.id, {
                 account_holder_name: account.first_name + ' ' + account.last_name,
                 account_holder_type: 'individual',
+                default_for_currency: item.default,
                 metadata: this.toMetadata(item),
             });
-            return yield this.toPublicAsync(customerSource);
+            return yield this.toPublicAsync(customAccount, externalAccount);
         });
     }
     deleteAsync(correlationId, id, customerId) {
         return __awaiter(this, void 0, void 0, function* () {
-            var customer_id = yield this.fromPublicCustomerAsync(customerId);
-            let customerSource = yield StripeTools_1.StripeTools.errorSuppression(this._client.customers.deleteSource(customer_id, id, {
-                expand: ['metadata']
-            }));
-            return customerSource ? yield this.toPublicAsync(customerSource) : null;
+            var customAccount = yield this.findCustomAccountAsync(customerId);
+            if (!customAccount)
+                return null;
+            var bankAccount = yield this.retrieveBankAccountAsync(correlationId, id, customAccount.id);
+            if (bankAccount) {
+                let deletedBankAccount = yield StripeTools_1.StripeTools.errorSuppression(this._client.accounts.deleteExternalAccount(customAccount.id, id));
+                if (deletedBankAccount && deletedBankAccount.deleted) {
+                    return yield this.toPublicAsync(customAccount, bankAccount);
+                }
+            }
+            return null;
         });
     }
     clearAsync(correlationId) {
@@ -170,29 +168,46 @@ class StripeBankAccountsConnector {
             }
         });
     }
-    getCustomerIdAsync(item) {
+    retrieveBankAccountAsync(correlationId, id, customAccountId) {
         return __awaiter(this, void 0, void 0, function* () {
-            var customerId = yield this.fromPublicCustomerAsync(item.customer_id);
-            if (customerId == null) {
-                var customer = yield this._client.customers.create({
+            let externalAccount = yield StripeTools_1.StripeTools.errorSuppression(this._client.accounts.retrieveExternalAccount(customAccountId, id, {
+                expand: ['metadata']
+            }));
+            return externalAccount;
+        });
+    }
+    getOrCreateCustomAccountAsync(item) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var customAccount = yield this.findCustomAccountAsync(item.customer_id);
+            if (!customAccount) {
+                customAccount = yield this._client.accounts.create({
+                    type: 'custom',
+                    business_type: 'individual',
+                    business_profile: {
+                        mcc: '1520',
+                        url: 'http://unknown.com/'
+                    },
+                    requested_capabilities: [
+                        //'card_payments',
+                        'transfers',
+                    ],
                     metadata: {
                         'customer_id': item.customer_id
                     }
                 });
-                customerId = customer.id;
             }
-            return customerId;
+            return customAccount;
         });
     }
-    toPublicAsync(item) {
-        var _a, _b;
+    toPublicAsync(customAccount, item) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            let customer_id = yield this.toPublicCustomerAsync(util_1.isString(item.customer) ? item.customer : (_a = item.customer) === null || _a === void 0 ? void 0 : _a.id);
+            let customer_id = customAccount.metadata['customer_id'].toString();
             var method = {
                 id: item.id,
-                payout: false,
+                payout: true,
                 account: {
-                    number: (_b = item.account) === null || _b === void 0 ? void 0 : _b.toString(),
+                    number: (_a = item.account) === null || _a === void 0 ? void 0 : _a.toString(),
                     routing_number: item.routing_number,
                     country: item.country,
                     currency: item.currency,
@@ -210,51 +225,49 @@ class StripeBankAccountsConnector {
             return method;
         });
     }
-    toPublicCustomerAsync(customer_id) {
-        var _a;
+    findCustomAccountAsync(customer_id) {
         return __awaiter(this, void 0, void 0, function* () {
             if (customer_id) {
-                let item = yield this._client.customers.retrieve(customer_id, {});
-                let customer = item;
-                if (customer) {
-                    return (_a = customer.metadata['customer_id']) === null || _a === void 0 ? void 0 : _a.toString();
-                }
+                return yield StripeTools_1.StripeTools.findItem(p => this._client.accounts.list(p), x => x.metadata && x.metadata['customer_id'] == customer_id, x => x.id);
             }
             return null;
         });
     }
-    fromPublicCustomerAsync(customer_id) {
+    createToken(paymentMethod) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (customer_id) {
-                var customers = yield this._client.customers.list({});
-                for (let index = 0; index < customers.data.length; index++) {
-                    const customer = customers.data[index];
-                    if (customer.metadata['customer_id'] == customer_id) {
-                        return customer.id;
-                    }
-                }
-            }
-            return null;
+            let account = paymentMethod.account;
+            let token = yield this._client.tokens.create({
+                bank_account: {
+                    account_number: account.number,
+                    country: account.country,
+                    currency: account.currency,
+                    account_holder_name: account.first_name + ' ' + account.last_name,
+                    account_holder_type: 'individual',
+                    routing_number: account.routing_number
+                },
+            });
+            return token.id;
         });
     }
-    getAllCustomerIds() {
+    getAllCustomAccounts() {
         return __awaiter(this, void 0, void 0, function* () {
-            let ids = [];
+            let customAccounts = [];
             let pageSize = 100;
             do {
-                let options = ids.length == 0
-                    ? {
+                let options;
+                if (customAccounts.length == 0)
+                    options = {
                         limit: pageSize
-                    }
-                    : {
-                        limit: pageSize,
-                        starting_after: ids[ids.length - 1]
                     };
-                if (ids.length == 0)
-                    var items = yield this._client.customers.list(options);
-                ids.push(...items.data.map((item, index, array) => item.id));
+                else
+                    options = {
+                        limit: pageSize,
+                        starting_after: customAccounts[customAccounts.length - 1].id
+                    };
+                var items = yield this._client.accounts.list(options);
+                customAccounts.push(...items.data);
             } while (items.has_more);
-            return ids;
+            return customAccounts;
         });
     }
     toMetadata(item) {
@@ -297,5 +310,5 @@ class StripeBankAccountsConnector {
         }
     }
 }
-exports.StripeBankAccountsConnector = StripeBankAccountsConnector;
-//# sourceMappingURL=StripeBankAccountsConnector.js.map
+exports.StripeExternalBankAccountsConnector = StripeExternalBankAccountsConnector;
+//# sourceMappingURL=StripeExternalBankAccountsConnector.js.map

@@ -7,6 +7,7 @@ export declare class PaymentMethodV1 implements IStringIdentifiable {
     customer_id: string;
     create_time?: Date;
     update_time?: Date;
+    payout: boolean;
     type: string;
     card?: CreditCardV1;
     account?: BankAccountV1;

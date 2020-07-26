@@ -29,6 +29,9 @@ class PaymentMethodsMongoDbPersistence extends pip_services3_mongodb_node_1.Iden
         let customerId = filter.getAsNullableString('customer_id');
         if (customerId != null)
             criteria.push({ customer_id: customerId });
+        let payout = filter.getAsNullableBoolean('payout');
+        if (payout != null)
+            criteria.push({ payout: payout });
         return criteria.length > 0 ? { $and: criteria } : null;
     }
     getPageByFilter(correlationId, filter, paging, callback) {

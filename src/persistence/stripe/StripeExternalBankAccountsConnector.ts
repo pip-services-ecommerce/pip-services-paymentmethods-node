@@ -20,7 +20,7 @@ import { PaymentMethodTypeV1 } from "../../data/version1";
 import { AddressV1 } from "../../data/version1";
 import { StripeTools } from "./StripeTools";
 
-export class StripeBankAccountsConnector implements IStripeConnector {
+export class StripeExternalBankAccountsConnector implements IStripeConnector {
     private _client: Stripe = null;
 
     private _connectionResolver: ConnectionResolver = new ConnectionResolver();
@@ -94,27 +94,28 @@ export class StripeBankAccountsConnector implements IStripeConnector {
 
     async getPageByFilterAsync(correlationId: string, filter: FilterParams, paging: PagingParams): Promise<DataPage<PaymentMethodV1>> {
         let customer_id = filter?.getAsString('customer_id');
-        let customerId: string = customer_id ? await this.fromPublicCustomerAsync(customer_id) : null;
+        let customAccount = customer_id ? await this.findCustomAccountAsync(customer_id) : null;
 
         let skip = paging.getSkip(0);
         let take = paging.getTake(100);
 
-        let ids = customerId ? [customerId] : await this.getAllCustomerIds();
+        let customAccounts = customAccount ? [customAccount] : await this.getAllCustomAccounts();
 
         let data: PaymentMethodV1[] = [];
 
-        for (let i = 0; i < ids.length; i++) {
-            const id = ids[i];
+        for (let i = 0; i < customAccounts.length; i++) {
+            const customAccount = customAccounts[i];
 
-            let items = await this._client.customers.listSources(id, {
-                object: 'bank_account',
+            let items = await this._client.accounts.listExternalAccounts(customAccount.id, {
+                // object: 'bank_account', -- error in stripe sdk: filter by object type is not supported
                 limit: skip + take,
-                // expand: ['data.metadata']
             });
 
             for (let j = 0; j < items.data.length; j++) {
                 const item = items.data[j];
-                data.push(await this.toPublicAsync(item as Stripe.BankAccount));
+                if (item.object != 'bank_account') continue;
+
+                data.push(await this.toPublicAsync(customAccount, item as Stripe.BankAccount));
             }
         }
 
@@ -122,64 +123,60 @@ export class StripeBankAccountsConnector implements IStripeConnector {
     }
 
     async getByIdAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1> {
-        var customer_id = await this.fromPublicCustomerAsync(customerId);
+        var customAccount = await this.findCustomAccountAsync(customerId);
+        if (!customAccount) return null;
 
-        let customerSource: Stripe.CustomerSource =
-            await StripeTools.errorSuppression(this._client.customers.retrieveSource(customer_id, id, {
-                expand: ['metadata']
-            }));
+        var bankAccount = await this.retrieveBankAccountAsync(correlationId, id, customAccount.id)
 
-        return customerSource ? await this.toPublicAsync(customerSource as Stripe.BankAccount) : null;
+        return bankAccount ? await this.toPublicAsync(customAccount, bankAccount) : null;
     }
 
     async createAsync(correlationId: string, item: PaymentMethodV1): Promise<PaymentMethodV1> {
-        var customerId = await this.getCustomerIdAsync(item);
+        var customAccount = await this.getOrCreateCustomAccountAsync(item);
 
-        let account = item.account;
+        let tokenId = await this.createToken(item);
 
-        let bankToken = await this._client.tokens.create({
-            bank_account: {
-                account_number: account.number,
-                country: account.country,
-                currency: account.currency,
-                account_holder_name: account.first_name + ' ' + account.last_name,
-                account_holder_type: 'individual',
-                routing_number: account.routing_number
-            },
-        });
-
-        let customerSource = await this._client.customers.createSource(customerId, {
-            source: bankToken.id,
+        let externalAccount = await this._client.accounts.createExternalAccount(customAccount.id, {
+            external_account: tokenId,
             metadata: this.toMetadata(item),
         });
 
-        return await this.toPublicAsync(customerSource as Stripe.BankAccount);
+        return await this.toPublicAsync(customAccount, externalAccount as Stripe.BankAccount);
     }
 
     async updateAsync(correlationId: string, item: PaymentMethodV1): Promise<PaymentMethodV1> {
-        var customerId = await this.getCustomerIdAsync(item);
+        var customAccount = await this.getOrCreateCustomAccountAsync(item);
 
         let account = item.account;
 
         // Updates the account_holder_name, account_holder_type, and metadata of a bank account belonging to a customer. 
         // Other bank account details are not editable, by design.
-        let customerSource = await this._client.customers.updateSource(customerId, item.id, {
+        let externalAccount = await this._client.accounts.updateExternalAccount(customAccount.id, item.id, {
             account_holder_name: account.first_name + ' ' + account.last_name,
             account_holder_type: 'individual',
+            default_for_currency: item.default,
             metadata: this.toMetadata(item),
         });
 
-        return await this.toPublicAsync(customerSource as Stripe.BankAccount);
+        return await this.toPublicAsync(customAccount, externalAccount as Stripe.BankAccount);
     }
 
     async deleteAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1> {
-        var customer_id = await this.fromPublicCustomerAsync(customerId);
+        var customAccount = await this.findCustomAccountAsync(customerId);
+        if (!customAccount) return null;
 
-        let customerSource = await StripeTools.errorSuppression(this._client.customers.deleteSource(customer_id, id, {
-            expand: ['metadata']
-        }));
+        var bankAccount = await this.retrieveBankAccountAsync(correlationId, id, customAccount.id);
+        if (bankAccount)
+        {
+            let deletedBankAccount = await StripeTools.errorSuppression(this._client.accounts.deleteExternalAccount(customAccount.id, id)) 
 
-        return customerSource ? await this.toPublicAsync(customerSource as Stripe.BankAccount) : null;
+            if (deletedBankAccount && deletedBankAccount.deleted) 
+            {
+                return await this.toPublicAsync(customAccount, bankAccount)
+            }
+        }
+
+        return null;
     }
 
     async clearAsync(correlationId: string): Promise<void> {
@@ -194,28 +191,47 @@ export class StripeBankAccountsConnector implements IStripeConnector {
         }
     }
 
-    private async getCustomerIdAsync(item: PaymentMethodV1): Promise<string> {
-        var customerId = await this.fromPublicCustomerAsync(item.customer_id);
-        if (customerId == null) {
-            var customer = await this._client.customers.create({
+    
+    private async retrieveBankAccountAsync(correlationId: string, id: string, customAccountId: string): Promise<Stripe.BankAccount> {
+        let externalAccount =
+            await StripeTools.errorSuppression(this._client.accounts.retrieveExternalAccount(customAccountId, id, {
+                expand: ['metadata']
+            }));
+
+        return externalAccount as Stripe.BankAccount;
+    }
+
+    private async getOrCreateCustomAccountAsync(item: PaymentMethodV1): Promise<Stripe.Account> {
+        var customAccount = await this.findCustomAccountAsync(item.customer_id);
+        
+        if (!customAccount) {
+            customAccount = await this._client.accounts.create({
+                type: 'custom',
+                business_type: 'individual',
+                business_profile: {
+                    mcc: '1520',
+                    url: 'http://unknown.com/'
+                },
+                requested_capabilities: [
+                    //'card_payments',
+                    'transfers',
+                ],
                 metadata: {
                     'customer_id': item.customer_id
                 }
             });
-
-            customerId = customer.id;
         }
 
-        return customerId;
+        return customAccount;
     }
 
-    private async toPublicAsync(item: Stripe.BankAccount): Promise<PaymentMethodV1> {
+    private async toPublicAsync(customAccount: Stripe.Account, item: Stripe.BankAccount): Promise<PaymentMethodV1> {
 
-        let customer_id = await this.toPublicCustomerAsync(isString(item.customer) ? item.customer : item.customer?.id);
+        let customer_id = customAccount.metadata['customer_id'].toString();
 
         var method: PaymentMethodV1 = {
             id: item.id,
-            payout: false,
+            payout: true,
             account: {
                 number: item.account?.toString(),
                 routing_number: item.routing_number,
@@ -238,54 +254,54 @@ export class StripeBankAccountsConnector implements IStripeConnector {
         return method;
     }
 
-    private async toPublicCustomerAsync(customer_id: string): Promise<string> {
+    private async findCustomAccountAsync(customer_id: string): Promise<Stripe.Account> {
         if (customer_id) {
-            let item = await this._client.customers.retrieve(customer_id, {});
-
-            let customer = item as Stripe.Customer;
-            if (customer) {
-                return customer.metadata['customer_id']?.toString();
-            }
+            return await StripeTools.findItem(p => this._client.accounts.list(p), 
+                x => x.metadata && x.metadata['customer_id'] == customer_id, x => x.id);
         }
+        
         return null;
     }
 
-    private async fromPublicCustomerAsync(customer_id: string): Promise<string> {
-        if (customer_id) {
-            var customers = await this._client.customers.list({});
+    private async createToken(paymentMethod: PaymentMethodV1): Promise<string> {
+        let account = paymentMethod.account;
 
-            for (let index = 0; index < customers.data.length; index++) {
-                const customer = customers.data[index];
-                if (customer.metadata['customer_id'] == customer_id) {
-                    return customer.id;
-                }
-            }
-        }
-        return null;
+        let token = await this._client.tokens.create({
+            bank_account: {
+                account_number: account.number,
+                country: account.country,
+                currency: account.currency,
+                account_holder_name: account.first_name + ' ' + account.last_name,
+                account_holder_type: 'individual',
+                routing_number: account.routing_number
+            },
+        });
+
+        return token.id;
     }
 
-    private async getAllCustomerIds(): Promise<string[]> {
-        let ids: string[] = [];
+    private async getAllCustomAccounts(): Promise<Stripe.Account[]> {
+        let customAccounts: Stripe.Account[] = [];
         let pageSize = 100;
 
         do {
-            let options = ids.length == 0
-                ? {
+            let options: Stripe.AccountListParams;
+            if (customAccounts.length == 0)
+            options = {
                     limit: pageSize
-                }
-                : {
+                };
+            else options = {
                     limit: pageSize,
-                    starting_after: ids[ids.length - 1]
+                    starting_after: customAccounts[customAccounts.length - 1].id
                 };
 
-            if (ids.length == 0)
-                var items = await this._client.customers.list(options)
+            var items = await this._client.accounts.list(options)
 
-            ids.push(...items.data.map((item, index, array) => item.id));
+            customAccounts.push(...items.data);
         }
         while (items.has_more);
 
-        return ids;
+        return customAccounts;
     }
 
     private toMetadata(item: PaymentMethodV1): Stripe.MetadataParam {
@@ -332,4 +348,5 @@ export class StripeBankAccountsConnector implements IStripeConnector {
             };
         }
     }
+
 }

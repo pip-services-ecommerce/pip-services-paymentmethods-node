@@ -24,6 +24,7 @@ class PaymentMethodsMemoryPersistence extends pip_services3_data_node_1.Identifi
         let customerId = filter.getAsNullableString('customer_id');
         let _default = filter.getAsNullableBoolean('default');
         let ids = filter.getAsObject('ids');
+        let payout = filter.getAsNullableBoolean('payout');
         // Process ids filter
         if (_.isString(ids))
             ids = ids.split(',');
@@ -39,6 +40,8 @@ class PaymentMethodsMemoryPersistence extends pip_services3_data_node_1.Identifi
             if (_default && item.default != _default)
                 return false;
             if (customerId && item.customer_id != customerId)
+                return false;
+            if (payout && item.payout != payout)
                 return false;
             return true;
         };

@@ -28,5 +28,4 @@ export declare class StripeBankAccountsConnector implements IStripeConnector {
     private getAllCustomerIds;
     private toMetadata;
     private fromMetadata;
-    errorSuppression<T>(action: Promise<T>, errorCodes?: [string]): Promise<T>;
 }

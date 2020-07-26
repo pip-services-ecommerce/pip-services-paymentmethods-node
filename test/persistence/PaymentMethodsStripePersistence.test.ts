@@ -45,6 +45,26 @@ suite('PaymentMethodsStripePersistence', () => {
         persistence.close(null, done);
     });
 
+    test('External bank account for payouts', (done) => {
+        if (terminate) {
+            done(null);
+            return;
+        }
+
+        done();
+        //fixture.testExternalBankAccount(done);
+    });
+    
+    test('External card for payouts', (done) => {
+        if (terminate) {
+            done(null);
+            return;
+        }
+
+        done();
+        // fixture.testExternalCard(done);
+    });
+
     test('CRUD Operations', (done) => {
         if (terminate) {
             done(null);

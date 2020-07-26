@@ -18,6 +18,7 @@ import { CompositeLogger } from 'pip-services3-components-node';
 import { PaymentMethodV1 } from "../../data/version1";
 import { PaymentMethodTypeV1 } from "../../data/version1";
 import { AddressV1 } from "../../data/version1";
+import { StripeTools } from "./StripeTools";
 
 export class StripeCardsConnector implements IStripeConnector {
     private _client: Stripe = null;
@@ -125,7 +126,7 @@ export class StripeCardsConnector implements IStripeConnector {
     async getByIdAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1> {
         var customer_id = await this.fromPublicCustomerAsync(customerId);
 
-        let paymentMethod = await this.errorSuppression(this._client.paymentMethods.retrieve(id, {
+        let paymentMethod = await StripeTools.errorSuppression(this._client.paymentMethods.retrieve(id, {
             expand: ['billing_details', 'card']
         }));
 
@@ -209,7 +210,7 @@ export class StripeCardsConnector implements IStripeConnector {
     }
 
     async deleteAsync(correlationId: string, id: string) {
-        let paymentMethod = await this.errorSuppression(this._client.paymentMethods.detach(id, {
+        let paymentMethod = await StripeTools.errorSuppression(this._client.paymentMethods.detach(id, {
             expand: ['billing_details', 'card']
         }));
 
@@ -233,7 +234,8 @@ export class StripeCardsConnector implements IStripeConnector {
 
         var method: PaymentMethodV1 = {
             id: item.id,
-            type: PaymentMethodTypeV1.CreditCard,
+            payout: false,
+            type: PaymentMethodTypeV1.Card,
             customer_id: customer_id,
             card: {
                 expire_month: item.card.exp_month,
@@ -327,30 +329,12 @@ export class StripeCardsConnector implements IStripeConnector {
         if (metadata) {
             item.default = metadata['default'] == 'true';
             item.saved = metadata['saved'] == 'true';
-            item.name = metadata['name'].toString();
+            item.name = metadata['name']?.toString();
 
-            item.card.first_name = metadata['first_name'].toString();
-            item.card.last_name = metadata['last_name'].toString();
-            item.card.brand = metadata['brand'].toString();
-            item.card.state = metadata['state'].toString();
+            item.card.first_name = metadata['first_name']?.toString();
+            item.card.last_name = metadata['last_name']?.toString();
+            item.card.brand = metadata['brand']?.toString();
+            item.card.state = metadata['state']?.toString();
         }
-    }
-
-    async errorSuppression<T>(action: Promise<T>, errorCodes: [string] = ['resource_missing']): Promise<T> {
-        let result: T = null;
-        let err: any;
-
-        try {
-            result = await action;
-        }
-        catch (e) {
-            err = e;
-        }
-
-        if (err) {
-            if (!errorCodes.includes(err.code)) throw err;
-        }
-
-        return result;
     }
 }

@@ -37,6 +37,7 @@ export class PaymentMethodsMemoryPersistence
         let customerId = filter.getAsNullableString('customer_id');
         let _default = filter.getAsNullableBoolean('default');
         let ids = filter.getAsObject('ids');
+        let payout = filter.getAsNullableBoolean('payout');
 
         // Process ids filter
         if (_.isString(ids))
@@ -55,6 +56,9 @@ export class PaymentMethodsMemoryPersistence
                 return false;
             if (customerId && item.customer_id != customerId)
                 return false;
+            if (payout && item.payout != payout)
+                return false;
+                
             return true;
         };
     }

@@ -88,7 +88,7 @@ export class PaymentMethodsPayPalMongoDbPersistence implements IPaymentMethodsPe
             }
 
             if (page) {
-                let cardIds = page.data.filter(x => x.type == PaymentMethodTypeV1.CreditCard).map(x => x.id);
+                let cardIds = page.data.filter(x => x.type == PaymentMethodTypeV1.Card).map(x => x.id);
                 if (cardIds.length == 0) {
                     if (callback) callback(err, page);
                     return;
@@ -119,7 +119,7 @@ export class PaymentMethodsPayPalMongoDbPersistence implements IPaymentMethodsPe
 
     public getById(correlationId: string, id: string, customerId: string, callback: (err: any, item: PaymentMethodV1) => void): void {
         this._mongoPersistence.getOneById(correlationId, id, (err, item) => {
-            if (err || !item || item.type != PaymentMethodTypeV1.CreditCard) {
+            if (err || !item || item.type != PaymentMethodTypeV1.Card || item.payout) {
                 if (callback) callback(err, item);
                 return;
             }
@@ -129,7 +129,7 @@ export class PaymentMethodsPayPalMongoDbPersistence implements IPaymentMethodsPe
     }
 
     public create(correlationId: string, item: PaymentMethodV1, callback: (err: any, item: PaymentMethodV1) => void): void {
-        if (item.type == PaymentMethodTypeV1.CreditCard) {
+        if (item.type == PaymentMethodTypeV1.Card && !item.payout) {
             this._payPalPersistence.create(correlationId, item, (err, item) => {
                 if (err) {
                     if (callback) callback(err, item);
@@ -146,7 +146,7 @@ export class PaymentMethodsPayPalMongoDbPersistence implements IPaymentMethodsPe
     }
 
     public update(correlationId: string, item: PaymentMethodV1, callback: (err: any, item: PaymentMethodV1) => void): void {
-        if (item.type == PaymentMethodTypeV1.CreditCard) {
+        if (item.type == PaymentMethodTypeV1.Card && !item.payout) {
             this._payPalPersistence.update(correlationId, item, (err, item) => {
                 if (err) {
                     if (callback) callback(err, item);
@@ -164,7 +164,7 @@ export class PaymentMethodsPayPalMongoDbPersistence implements IPaymentMethodsPe
 
     public delete(correlationId: string, id: string, customerId: string, callback: (err: any, item: PaymentMethodV1) => void): void {
         this._mongoPersistence.delete(correlationId, id, customerId, (err, item) => {
-            if (err || !item || item.type != PaymentMethodTypeV1.CreditCard) {
+            if (err || !item || item.type != PaymentMethodTypeV1.Card || item.payout) {
                 if (callback) callback(err, item);
                 return;
             }

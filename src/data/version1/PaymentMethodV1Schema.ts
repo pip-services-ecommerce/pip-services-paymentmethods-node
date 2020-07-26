@@ -14,6 +14,7 @@ export class PaymentMethodV1Schema extends ObjectSchema {
         this.withOptionalProperty('create_time', TypeCode.DateTime);
         this.withOptionalProperty('update_time', TypeCode.DateTime);
 
+        this.withRequiredProperty('payout', TypeCode.Boolean);
         this.withRequiredProperty('type', TypeCode.String);
         this.withOptionalProperty('card', new CreditCardV1Schema());
         this.withOptionalProperty('account', new BankAccountV1Schema());

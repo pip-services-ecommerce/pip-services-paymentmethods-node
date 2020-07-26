@@ -45,7 +45,11 @@ export class PaymentMethodsMongoDbPersistence
         let customerId = filter.getAsNullableString('customer_id');
         if (customerId != null)
             criteria.push({ customer_id: customerId });
-                
+        
+        let payout = filter.getAsNullableBoolean('payout');
+        if (payout != null)
+            criteria.push({ payout: payout });
+
         return criteria.length > 0 ? { $and: criteria } : null;
     }
     
@@ -61,6 +65,7 @@ export class PaymentMethodsMongoDbPersistence
 
     public delete(correlationId: string, id: string, customerId: string,
         callback: (err: any, item: PaymentMethodV1) => void): void {
-        super.deleteById(correlationId, id, callback);
+            
+            super.deleteById(correlationId, id, callback);
     }
 }

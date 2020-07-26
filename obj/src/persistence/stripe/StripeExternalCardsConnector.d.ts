@@ -4,7 +4,7 @@ import { DataPage } from "pip-services3-commons-node";
 import { PagingParams } from "pip-services3-commons-node";
 import { ConfigParams } from "pip-services3-commons-node";
 import { PaymentMethodV1 } from "../../data/version1";
-export declare class StripeCardsConnector implements IStripeConnector {
+export declare class StripeExternalCardsConnector implements IStripeConnector {
     private _client;
     private _connectionResolver;
     private _credentialsResolver;
@@ -19,12 +19,14 @@ export declare class StripeCardsConnector implements IStripeConnector {
     getByIdAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1>;
     createAsync(correlationId: string, item: PaymentMethodV1): Promise<PaymentMethodV1>;
     updateAsync(correlationId: string, item: PaymentMethodV1): Promise<PaymentMethodV1>;
-    deleteAsync(correlationId: string, id: string): Promise<PaymentMethodV1>;
+    deleteAsync(correlationId: string, id: string, customerId: string): Promise<PaymentMethodV1>;
     clearAsync(correlationId: string): Promise<void>;
+    private retrieveCardAsync;
+    private getOrCreateCustomAccountAsync;
     private toPublicAsync;
-    private toPublicCustomerAsync;
-    private fromPublicCustomerAsync;
-    private getAllCustomerIds;
+    private findCustomAccountAsync;
+    private createToken;
+    private getAllCustomAccounts;
     private toMetadata;
     private fromMetadata;
 }
